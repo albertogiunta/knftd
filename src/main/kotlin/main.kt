@@ -2,6 +2,7 @@ import CANVAS.canvasFrame
 import FileUtils.getImg
 import IMG.imgConverter
 import IMG.originalImg
+import IMG.resizeRatio
 import net.sourceforge.tess4j.Tesseract
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.indexer.FloatRawIndexer
@@ -13,10 +14,12 @@ import org.bytedeco.javacv.CanvasFrame
 import org.bytedeco.javacv.OpenCVFrameConverter
 import java.io.File
 import java.lang.Math.*
+import javax.imageio.ImageIO
 
 
 object IMG {
-    val originalImg: Mat = imread(getImg("dado.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val resizeRatio = 0.2
+    val originalImg: Mat = imread(getImg("biscotti.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -28,12 +31,13 @@ object CANVAS {
 }
 
 object CANNY {
-    val threshold = 40.0
+    val threshold = 60.0
     val apertureSize = 3
 }
 
 fun main(args: Array<String>) {
     runMainAlgorithm()
+//    ocr()
 }
 
 fun runMainAlgorithm() {
@@ -47,9 +51,9 @@ fun runMainAlgorithm() {
     Canny(modifiedImg, modifiedImg, CANNY.threshold, (CANNY.threshold * 1), CANNY.apertureSize, true)
 
     // 3) apply Hough transform
-    val distanceResolutionInPixels = 0.3
-    val angleResolutionInRadians = 0.015
-    val minimumVotes = 150
+    val distanceResolutionInPixels: Double = 1.0 // rho
+    val angleResolutionInRadians: Double = PI / 180 // theta
+    val minimumVotes = 200
 
     val lines = Mat()
 
@@ -67,30 +71,28 @@ fun runMainAlgorithm() {
         val rho = indexer.get(i.toLong(), 0, 0)
         val theta = indexer.get(i.toLong(), 0, 1).toDouble()
 
-        val pair = if (theta < PI / 4.0 || theta > 3.0 * PI / 4.0) {
+        if (theta <= PI / 4.0 || theta >= 3.0 * PI / 4.0) {
             // ~vertical line
-            // point of intersection of the line with first row
-            val p1 = Point(round(rho / cos(theta)).toInt(), 0)
-            // point of intersection of the line with last row
-            val p2 = Point(round((rho - result.rows() * sin(theta)) / cos(theta)).toInt(), result.rows())
-            Pair(p1, p2)
+            if (theta < 0.3141 || theta > 2.5132) {
+                val p1 = Point(round(rho / cos(theta)).toInt(), 0) // point of intersection of the line with first row
+                val p2 = Point(round((rho - result.rows() * sin(theta)) / cos(theta)).toInt(), result.rows()) // point of intersection of the line with last row
+                line(result, p1, p2, Scalar(255.0, 0.0, 255.0, 0.0), 1, LINE_8, 0)
+            }
         } else {
             // ~horizontal line
-            // point of intersection of the line with first column
-            val p1 = Point(0, round(rho / sin(theta)).toInt())
-            // point of intersection of the line with last column
-            val p2 = Point(result.cols(), round((rho - result.cols() * cos(theta)) / sin(theta)).toInt())
-            Pair(p1, p2)
+            if ((theta < 1.60 && theta > 1.55)) {
+                val p1 = Point(0, round(rho / sin(theta)).toInt()) // point of intersection of the line with first column
+                val p2 = Point(result.cols(), round((rho - result.cols() * cos(theta)) / sin(theta)).toInt()) // point of intersection of the line with last column
+                line(result, p1, p2, Scalar(255.0, 0.0, 255.0, 0.0), 1, LINE_8, 0)
+            }
         }
-
-        // draw a white line
-        line(result, pair.first, pair.second, Scalar(255.0, 0.0, 255.0, 0.0), 1, LINE_8, 0)
     }
 
     // 4) correct rotation w/ average horizontal 0
 
     // final) show image to screen
     canvasFrame.showImage(imgConverter.convert(toMat8U(result)))
+//    canvasFrame.showImage(imgConverter.convert(modifiedImg))
 }
 
 fun toMat8U(src: Mat, doScaling: Boolean = true): Mat {
@@ -112,11 +114,13 @@ fun toMat8U(src: Mat, doScaling: Boolean = true): Mat {
 fun ocr() {
     val tess = Tesseract()
     tess.setLanguage("ita")
-    val image = File(getImg("biscotti.jpg"))
-    val r = tess.doOCR(image)
-    println(r)
+    val file = File(getImg("dado.jpg"))
+    val image = ImageIO.read(file)
+    val r = tess.doOCR(file)
+    val words = tess.getWords(image, 0)
+    words.forEach { println("|${it.text}|") }
 }
 
-fun resizeSelf(img: Mat) = resize(img, img, Size((img.size().width() * 0.2).toInt(), (img.size().height() * 0.2).toInt()))
+fun resizeSelf(img: Mat) = resize(img, img, Size((img.size().width() * resizeRatio).toInt(), (img.size().height() * resizeRatio).toInt()))
 
 fun cloneImageFrom(img: Mat) = Mat(img.size().width(), img.size().height(), IPL_DEPTH_8U, 1)
