@@ -22,7 +22,7 @@ import javax.imageio.ImageIO
 
 object IMG {
     val resizeRatio = 0.2
-    val originalImg: Mat = imread(getImg("dado.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val originalImg: Mat = imread(getImg("biscotti.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -127,7 +127,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
 
     if (!shrinkLines) {
         println("last theta " + finalTheta)
-//        finalTheta = vertLinesList.map { Math.abs(it.theta) }.average()
+        finalTheta = verticalLinesList.map { Math.abs(it.theta) }.average()
         println("mean theta " + finalTheta)
     }
 
@@ -145,12 +145,10 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
     }
 
     // uncomment to display lines before the shrinking process
-/*
     val res1 = Mat().also { originalImg.copyTo(it) }
-    horLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-    vertLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
+    horizontalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
+    verticalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
     res1.show("Non rimosse $houghCounter")
-*/
 
     if (shrinkLines) {
         println("Result $houghCounter, NON RIMOSSE ${horizontalLinesList.size} ${verticalLinesList.size}")
