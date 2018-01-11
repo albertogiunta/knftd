@@ -22,7 +22,7 @@ import javax.imageio.ImageIO
 
 object IMG {
     val resizeRatio = 0.2
-    val originalImg: Mat = imread(getImg("biscotti.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val originalImg: Mat = imread(getImg("dado.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -36,7 +36,7 @@ object HOUGH {
     val distanceResolutionInPixels: Double = 1.0 // rho
     val angleResolutionInRadians: Double = PI / 180 // theta
     val minimumVotes = 200
-    var finalTheta: Double = 0.0
+    var finalTheta: Double = 0.0 // degrees
     var lines = Mat()
     val scalar = Scalar(0.0, 0.0, 0.0, 0.0)
     val scalar2 = Scalar(0.0, 0.0, 255.0, 0.0)
@@ -64,8 +64,11 @@ fun runMainAlgorithm() {
     // 3) apply Hough transform
     applyHough(modifiedImg, false)
 
+    originalImg.show("non ruotata")
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
+
+    originalImg.show("ruotata")
 
     // NB now originalImg is rotated, let's re-run the previous steps
 
@@ -110,7 +113,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
                 p1 = Point(round(rho / cos(theta)).toInt(), 0) // point of intersection of the line with first row
                 p2 = Point(round((rho - houghResult.rows() * sin(theta)) / cos(theta)).toInt(), houghResult.rows()) // point of intersection of the line with last row
                 verticalLinesList.add(Line(rho, theta, p1, p2))
-                finalTheta = theta
+//                finalTheta = theta
             }
         } else {
             // ~horizontal line
@@ -127,7 +130,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
 
     if (!shrinkLines) {
         println("last theta " + finalTheta)
-        finalTheta = verticalLinesList.map { Math.abs(it.theta) }.average()
+        finalTheta = verticalLinesList.map { it.theta }.average()
         println("mean theta " + finalTheta)
     }
 
@@ -148,7 +151,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
     val res1 = Mat().also { originalImg.copyTo(it) }
     horizontalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
     verticalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-    res1.show("Non rimosse $houghCounter")
+//    res1.show("Non rimosse $houghCounter")
 
     if (shrinkLines) {
         println("Result $houghCounter, NON RIMOSSE ${horizontalLinesList.size} ${verticalLinesList.size}")
@@ -160,14 +163,14 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
     val res2 = Mat().also { originalImg.copyTo(it) }
     horizontalLinesList.forEach { line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0) }
     verticalLinesList.forEach { line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-    res2.show("Rimosse $houghCounter")
+//    res2.show("Rimosse $houghCounter")
 
     houghCounter = houghCounter + 1
 }
 
 fun Mat.rotateToTheta() {
     if (finalTheta != 0.0) {
-        warpAffine(this, this, getRotationMatrix2D(Point2f((this.size().width() / 2).toFloat(), (this.size().height() / 2).toFloat()), 180 - finalTheta.toDegrees(), 1.0), this.size())
+        warpAffine(this, this, getRotationMatrix2D(Point2f((this.size().width() / 2).toFloat(), (this.size().height() / 2).toFloat()), -finalTheta, 1.0), this.size())
     }
 }
 
