@@ -21,8 +21,8 @@ import java.lang.Math.*
 
 
 object IMG {
-    val resizeRatio = 0.2
-    val originalImg: Mat = imread(getImg("biscotti.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val resizeRatio = 0.8
+    val originalImg: Mat = imread(getImg("olioetichetta.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -57,35 +57,34 @@ fun runMainAlgorithm() {
 
     // 1) convert to greyscale
     convertToGreyscale(originalImg, modifiedImg)
-//    modifiedImg.show("grey")
-
-    modifiedImg.show("NOT equalized")
-    modifiedImg.convertTo(modifiedImg, -1, 1.5, -100.0)
-    modifiedImg.show("equalized")
+    increaseContrast(modifiedImg)
 
     // 2) apply canny edge detection
     applyCanny(modifiedImg)
+
     // 3) apply Hough transform
     applyHough(modifiedImg)
+
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
 
     // NB now originalImg is rotated, let's re-run the previous steps
-/*
+
     // 5) convert to greyscale
     convertToGreyscale(originalImg, modifiedImg)
+    increaseContrast(modifiedImg)
 
     // 2) apply canny edge detection
-    applyCanny(modifiedImg)
+//    applyCanny(modifiedImg)
 
     // 4) correct rotation w/ average horizontal 0
-    applyHough(modifiedImg, true)
-
-    convertToGreyscale(originalImg, modifiedImg)
+//    applyHough(modifiedImg)
 
     applyOtsu(modifiedImg)
+    modifiedImg.show("DOPO OTSU")
 
     ocr(modifiedImg)
+/*
 */
 
 }
@@ -95,6 +94,8 @@ fun cloneImageFrom(img: Mat) = Mat(img.size().width(), img.size().height(), IPL_
 fun resizeSelf(img: Mat) = resize(img, img, Size((img.size().width() * resizeRatio).toInt(), (img.size().height() * resizeRatio).toInt()))
 
 fun convertToGreyscale(source: Mat, dest: Mat = source) = cvtColor(source, dest, CV_BGR2GRAY)
+
+fun increaseContrast(source: Mat) = source.convertTo(source, -1, 1.5, -100.0)
 
 fun applyCanny(source: Mat, dest: Mat = source) = Canny(source, dest, CANNY.threshold, (CANNY.threshold * 1), CANNY.apertureSize, true)
 
@@ -174,18 +175,21 @@ fun applyHough(source: Mat) {
         if (it.theta == 0.0) line(res2, it.p1, it.p2, scalar2, 1, LINE_8, 0)
         else line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0)
     }
-    res2.show("HOUGH (lines removed) $houghCounter")
+//    res2.show("HOUGH (lines removed) $houghCounter")
 
     houghCounter = houghCounter + 1
 }
 
 fun ocr(source: Mat) {
 
-    Mat.zeros(Size(11, 11), CV_8UC1)
-    val horizontalsize = source.cols() / 30
+//    Mat.zeros(Size(11, 11), CV_8UC1)
+
+    val horizontalsize = source.cols() / 200
     val horizontalStructure = getStructuringElement(MORPH_RECT, Size(horizontalsize, 1))
     val horizontalStructure2 = getStructuringElement(MORPH_RECT, Size(horizontalsize, 5))
+
     val a: Mat = source.clone()
+
     a.show()
     erode(source, a, horizontalStructure)
     dilate(a, a, horizontalStructure2)
@@ -211,9 +215,9 @@ fun ocr(source: Mat) {
 
     val imgForOCR = source.toBufferedImage()
 
-//    val r = tess.doOCR(imgForOCR)
-//    println(r)
-//    source.show()
+    val r = tess.doOCR(imgForOCR)
+    println(r)
+    source.show()
 }
 
 data class Line(val rho: Float, val theta: Double, val p1: Point, val p2: Point)
