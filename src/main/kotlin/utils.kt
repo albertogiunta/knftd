@@ -5,6 +5,7 @@ import org.bytedeco.javacv.CanvasFrame
 import org.bytedeco.javacv.Java2DFrameConverter
 import java.awt.Image
 import java.awt.image.BufferedImage
+import java.lang.Math.PI
 
 object FileUtils {
 
@@ -29,7 +30,7 @@ fun Image.toBufferedImage(): BufferedImage {
     return bufferedImage
 }
 
-//fun Double.toDegrees() = -this * 180 / PI
+fun Double.toDegrees() = this * 180 / PI
 
 fun opencv_core.Mat.toBufferedImage(): BufferedImage = Java2DFrameConverter().convert(imgConverter.convert(this))
 
