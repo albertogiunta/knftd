@@ -64,6 +64,7 @@ fun runMainAlgorithm() {
     applyHough(modifiedImg, false)
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
+
     // NB now originalImg is rotated, let's re-run the previous steps
 
     // 5) convert to greyscale
@@ -90,6 +91,14 @@ fun resizeSelf(img: Mat) = resize(img, img, Size((img.size().width() * resizeRat
 fun convertToGreyscale(source: Mat, dest: Mat = source) = cvtColor(source, dest, CV_BGR2GRAY)
 
 fun applyCanny(source: Mat, dest: Mat = source) = Canny(source, dest, CANNY.threshold, (CANNY.threshold * 1), CANNY.apertureSize, true)
+
+fun Mat.rotateToTheta() {
+    if (finalTheta != 0.0) {
+        warpAffine(this, this, getRotationMatrix2D(Point2f((this.size().width() / 2).toFloat(), (this.size().height() / 2).toFloat()), -finalTheta, 1.0), this.size())
+    }
+}
+
+fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_OTSU)
 
 fun applyHough(source: Mat, shrinkLines: Boolean) {
 
@@ -167,14 +176,6 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
 
     houghCounter = houghCounter + 1
 }
-
-fun Mat.rotateToTheta() {
-    if (finalTheta != 0.0) {
-        warpAffine(this, this, getRotationMatrix2D(Point2f((this.size().width() / 2).toFloat(), (this.size().height() / 2).toFloat()), -finalTheta, 1.0), this.size())
-    }
-}
-
-fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_OTSU)
 
 fun ocr(source: Mat) {
 
