@@ -8,6 +8,7 @@ import HOUGH.minimumVotes
 import HOUGH.scalar
 import HOUGH.scalar2
 import IMG.originalImg
+import IMG.originalImgNotResized
 import IMG.resizeRatio
 import LINE_SHRINKING.maxRhoTheresold
 import net.sourceforge.tess4j.Tesseract
@@ -21,8 +22,10 @@ import java.lang.Math.*
 
 
 object IMG {
-    val resizeRatio = 0.8
-    val originalImg: Mat = imread(getImg("olioetichetta.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val imgName = "olioantiorario" + "." + "jpg"
+    val resizeRatio = 0.6
+    val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
+    val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -67,11 +70,12 @@ fun runMainAlgorithm() {
 
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
+    originalImgNotResized.rotateToTheta()
 
     // NB now originalImg is rotated, let's re-run the previous steps
 
     // 5) convert to greyscale
-    convertToGreyscale(originalImg, modifiedImg)
+    convertToGreyscale(originalImgNotResized, modifiedImg)
     increaseContrast(modifiedImg)
 
     // 2) apply canny edge detection
@@ -81,11 +85,9 @@ fun runMainAlgorithm() {
 //    applyHough(modifiedImg)
 
     applyOtsu(modifiedImg)
-    modifiedImg.show("DOPO OTSU")
+//    modifiedImg.show()
 
     ocr(modifiedImg)
-/*
-*/
 
 }
 
@@ -181,24 +183,15 @@ fun applyHough(source: Mat) {
 }
 
 fun ocr(source: Mat) {
-
-//    Mat.zeros(Size(11, 11), CV_8UC1)
-
-    val horizontalsize = source.cols() / 200
-    val horizontalStructure = getStructuringElement(MORPH_RECT, Size(horizontalsize, 1))
-    val horizontalStructure2 = getStructuringElement(MORPH_RECT, Size(horizontalsize, 5))
-
     val a: Mat = source.clone()
 
-    a.show()
-    erode(source, a, horizontalStructure)
-    dilate(a, a, horizontalStructure2)
-    a.show()
-    bitwise_not(source, source)
-    bitwise_or(source, a, source)
-    source.show()
-//    a.show()
-//    source.show()
+//    val horizontalsize = a.cols() / 30
+//    val horizontalStructure = getStructuringElement(MORPH_RECT, Size(horizontalsize, 50))
+//    morphologyEx(a, a, MORPH_OPEN, horizontalStructure)
+//    erode(source, a, horizontalStructure)
+//    dilate(a, a, horizontalStructure2)
+//    bitwise_not(source, source)
+//    bitwise_or(source, a, source)
 
     val tess = Tesseract()
     tess.setLanguage("ita")
@@ -208,15 +201,20 @@ fun ocr(source: Mat) {
     tess.setTessVariable("enable_new_segsearch", "1")
     tess.setTessVariable("language_model_penalty_non_dict_word", "10000000")
 
-//    val imgForOCR = ImageIO.read(File(getImg("dado2.jpg")))
-
-//    imwrite("ehm.jpg", source)
-//    val imgForOCR= ImageIO.read(File(getImg("ehm.jpg")))
-
     val imgForOCR = source.toBufferedImage()
 
-    val r = tess.doOCR(imgForOCR)
-    println(r)
+    val nutriList = listOf<String>("nutrizionale", "nutrizionali")
+    var words = tess.getWords(imgForOCR, 0)
+
+    words.forEach { println(it.text) }
+
+    val y = words.filter { it.text.contains("nutrizion", true) }.map { it.boundingBox.y }[0] - 25
+    val x = words.filter { it.text.contains("sale", true) }.map { it.boundingBox.x }[0] - 20
+
+    val r = Rect(x, y, source.size().width() - x, source.size().height() - y)
+    val cropped = Mat(source, r)
+    cropped.show("cropped")
+
     source.show()
 }
 
