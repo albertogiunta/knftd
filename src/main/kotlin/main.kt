@@ -16,13 +16,12 @@ import org.bytedeco.javacpp.opencv_imgcodecs.CV_LOAD_IMAGE_UNCHANGED
 import org.bytedeco.javacpp.opencv_imgcodecs.imread
 import org.bytedeco.javacpp.opencv_imgproc.*
 import org.bytedeco.javacv.OpenCVFrameConverter
-import java.io.File
 import java.lang.Math.*
-import javax.imageio.ImageIO
+
 
 object IMG {
     val resizeRatio = 0.2
-    val originalImg: Mat = imread(getImg("dado.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val originalImg: Mat = imread(getImg("olio.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -63,13 +62,8 @@ fun runMainAlgorithm() {
 
     // 3) apply Hough transform
     applyHough(modifiedImg, false)
-
-    originalImg.show("non ruotata")
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
-
-    originalImg.show("ruotata")
-
     // NB now originalImg is rotated, let's re-run the previous steps
 
     // 5) convert to greyscale
@@ -80,6 +74,12 @@ fun runMainAlgorithm() {
 
     // 4) correct rotation w/ average horizontal 0
     applyHough(modifiedImg, true)
+
+    convertToGreyscale(originalImg, modifiedImg)
+
+    applyOtsu(modifiedImg)
+
+    ocr(modifiedImg)
 
 }
 
@@ -130,7 +130,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
 
     if (!shrinkLines) {
         println("last theta " + finalTheta)
-        finalTheta = verticalLinesList.map { it.theta }.average()
+        finalTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta }.average() else 0.0
         println("mean theta " + finalTheta)
     }
 
@@ -174,14 +174,43 @@ fun Mat.rotateToTheta() {
     }
 }
 
-fun ocr() {
+fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_OTSU)
+
+fun ocr(source: Mat) {
+
+    Mat.zeros(Size(11, 11), CV_8UC1)
+    val horizontalsize = source.cols() / 30
+    val horizontalStructure = getStructuringElement(MORPH_RECT, Size(horizontalsize, 1))
+    val horizontalStructure2 = getStructuringElement(MORPH_RECT, Size(horizontalsize, 5))
+    val a: Mat = source.clone()
+    a.show()
+    erode(source, a, horizontalStructure)
+    dilate(a, a, horizontalStructure2)
+    a.show()
+    bitwise_not(source, source)
+    bitwise_or(source, a, source)
+    source.show()
+//    a.show()
+//    source.show()
+
     val tess = Tesseract()
     tess.setLanguage("ita")
-    val file = File(getImg("dado.jpg"))
-    val image = ImageIO.read(file)
-    val r = tess.doOCR(file)
-    val words = tess.getWords(image, 0)
-    words.forEach { println("|${it.text}|") }
+    tess.setTessVariable("tessedit_pageseg_mode", "11")
+    tess.setTessVariable("load_system_dawg", "F")
+    tess.setTessVariable("load_freq_dawg", "F")
+    tess.setTessVariable("enable_new_segsearch", "1")
+    tess.setTessVariable("language_model_penalty_non_dict_word", "10000000")
+
+//    val imgForOCR = ImageIO.read(File(getImg("dado2.jpg")))
+
+//    imwrite("ehm.jpg", source)
+//    val imgForOCR= ImageIO.read(File(getImg("ehm.jpg")))
+
+    val imgForOCR = source.toBufferedImage()
+
+//    val r = tess.doOCR(imgForOCR)
+//    println(r)
+//    source.show()
 }
 
 data class Line(val rho: Float, val theta: Double, val p1: Point, val p2: Point)

@@ -2,15 +2,17 @@ import IMG.imgConverter
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.opencv_core
 import org.bytedeco.javacv.CanvasFrame
+import org.bytedeco.javacv.Java2DFrameConverter
 import java.awt.Image
 import java.awt.image.BufferedImage
-import java.lang.Math.PI
 
 object FileUtils {
 
     fun getRes() = "${System.getProperty("user.dir")}/res/"
 
     fun getImg(imgName: String) = "${getRes()}$imgName"
+
+    fun getImgIgnorante(imgName: String) = "${System.getProperty("user.dir")}/$imgName"
 
 }
 
@@ -27,7 +29,9 @@ fun Image.toBufferedImage(): BufferedImage {
     return bufferedImage
 }
 
-fun Double.toDegrees() = -this * 180 / PI
+//fun Double.toDegrees() = -this * 180 / PI
+
+fun opencv_core.Mat.toBufferedImage(): BufferedImage = Java2DFrameConverter().convert(imgConverter.convert(this))
 
 fun opencv_core.Mat.toMat8U(doScaling: Boolean = true): opencv_core.Mat {
     val minVal = DoublePointer(Double.MAX_VALUE)
