@@ -21,8 +21,8 @@ import java.lang.Math.*
 
 
 object IMG {
-    val resizeRatio = 0.6
-    val originalImg: Mat = imread(getImg("olioantiorario.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
+    val resizeRatio = 0.2
+    val originalImg: Mat = imread(getImg("biscotti.jpg"), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
 }
 
@@ -59,15 +59,16 @@ fun runMainAlgorithm() {
     convertToGreyscale(originalImg, modifiedImg)
 //    modifiedImg.show("grey")
 
+    modifiedImg.show("NOT equalized")
+    modifiedImg.convertTo(modifiedImg, -1, 1.5, -100.0)
+    modifiedImg.show("equalized")
+
     // 2) apply canny edge detection
     applyCanny(modifiedImg)
-
     // 3) apply Hough transform
-    applyHough(modifiedImg, true)
+    applyHough(modifiedImg)
     // 4) correct rotation w/ average horizontal 0
     originalImg.rotateToTheta()
-
-    originalImg.show("rotated")
 
     // NB now originalImg is rotated, let's re-run the previous steps
 /*
@@ -105,7 +106,7 @@ fun Mat.rotateToTheta() {
 
 fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_OTSU)
 
-fun applyHough(source: Mat, shrinkLines: Boolean) {
+fun applyHough(source: Mat) {
 
     lines = Mat()
     HoughLines(source, lines, distanceResolutionInPixels, angleResolutionInRadians, minimumVotes)
@@ -122,11 +123,9 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
         lateinit var p1: Point
         lateinit var p2: Point
 
-//        if (theta <= PI / 4.0 || theta >= 3.0 * PI / 4.0) {
         if (thetaDeg <= 45 || thetaDeg >= 135) {
             // ~vertical line
-//            if (theta < 0.3141 || theta > 2.5132) {
-            if (thetaDeg < 2 || thetaDeg > 178) {
+            if (thetaDeg < 10 || thetaDeg > 170) {
                 p1 = Point(round(rho / cos(theta)).toInt(), 0) // point of intersection of the line with first row
                 p2 = Point(round((rho - houghResult.rows() * sin(theta)) / cos(theta)).toInt(), houghResult.rows()) // point of intersection of the line with last row
                 if (thetaDeg > 90) theta = -(PI - theta)
@@ -134,8 +133,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
             }
         } else {
             // ~horizontal line
-//            if ((theta < 1.60 && theta > 1.55)) {
-            if ((thetaDeg < 92 && thetaDeg > 88)) {
+            if ((thetaDeg < 95 && thetaDeg > 85)) {
                 p1 = Point(0, round(rho / sin(theta)).toInt()) // point of intersection of the line with first column
                 p2 = Point(houghResult.cols(), round((rho - houghResult.cols() * cos(theta)) / sin(theta)).toInt()) // point of intersection of the line with last column
                 horizontalLinesList.add(Line(rho, theta, p1, p2))
@@ -159,26 +157,15 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
         }
     }
 
-    // uncomment to display lines before the shrinking process
-//    val res1 = Mat().also { originalImg.copyTo(it) }
-//    horizontalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-//    verticalLinesList.forEach { line(res1, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-//    res1.show("Non rimosse $houghCounter")
-
-//    if (shrinkLines) {
     println("Result $houghCounter, NON RIMOSSE ${horizontalLinesList.size} ${verticalLinesList.size}")
     removeLines(horizontalLinesList)
     removeLines(verticalLinesList)
     println("Result $houghCounter, RIMOSSE ${horizontalLinesList.size} ${verticalLinesList.size}")
-//    }
 
-    //    if (!shrinkLines) {
     verticalLinesList.forEach { println(it.theta.toDegrees()) }
     finalTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
     println("mean theta rad " + finalTheta)
-//    println("mean theta ° " + finalTheta.toDegrees())
-//    }
-
+    println("mean theta deg " + finalTheta * 180 / PI)
 
     val res2 = Mat().also { originalImg.copyTo(it) }
     //draw lines
@@ -187,7 +174,7 @@ fun applyHough(source: Mat, shrinkLines: Boolean) {
         if (it.theta == 0.0) line(res2, it.p1, it.p2, scalar2, 1, LINE_8, 0)
         else line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0)
     }
-    res2.show("Rimosse $houghCounter")
+    res2.show("HOUGH (lines removed) $houghCounter")
 
     houghCounter = houghCounter + 1
 }
