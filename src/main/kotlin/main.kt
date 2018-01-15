@@ -177,14 +177,12 @@ fun applyHough(source: Mat) {
         if (it.theta == 0.0) line(res2, it.p1, it.p2, scalar2, 1, LINE_8, 0)
         else line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0)
     }
-//    res2.show("HOUGH (lines removed) $houghCounter")
+    res2.show("HOUGH (lines removed) $houghCounter")
 
     houghCounter = houghCounter + 1
 }
 
 fun ocr(source: Mat) {
-    val a: Mat = source.clone()
-
 //    val horizontalsize = a.cols() / 30
 //    val horizontalStructure = getStructuringElement(MORPH_RECT, Size(horizontalsize, 50))
 //    morphologyEx(a, a, MORPH_OPEN, horizontalStructure)
@@ -200,16 +198,16 @@ fun ocr(source: Mat) {
     tess.setTessVariable("load_freq_dawg", "F")
     tess.setTessVariable("enable_new_segsearch", "1")
     tess.setTessVariable("language_model_penalty_non_dict_word", "10000000")
+    tess.setTessVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.%'")
 
     val imgForOCR = source.toBufferedImage()
 
-    val nutriList = listOf<String>("nutrizionale", "nutrizionali")
     var words = tess.getWords(imgForOCR, 0)
 
     words.forEach { println(it.text) }
 
     val y = words.filter { it.text.contains("nutrizion", true) }.map { it.boundingBox.y }[0] - 25
-    val x = words.filter { it.text.contains("sale", true) }.map { it.boundingBox.x }[0] - 20
+    val x = words.filter { it.text.contains("sale", true) }.map { it.boundingBox.x }[0] - 25
 
     val r = Rect(x, y, source.size().width() - x, source.size().height() - y)
     val cropped = Mat(source, r)
