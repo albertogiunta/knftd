@@ -1,4 +1,4 @@
-import DICT.dictionary
+import DICT.dictionaryProperties
 import DICT.dictionaryX
 import DICT.dictionaryY
 import DICT.distanceThresh
@@ -29,16 +29,16 @@ import org.bytedeco.javacv.OpenCVFrameConverter
 import java.lang.Math.*
 
 object DICT {
-    val dictionary = listOf("energia", "valore", "energetico", "kcal", "kj", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "di", "cui", "zuccheri", "proteine", "fibre", "sale", "sodio", "fibre", "fibra", "alimentare", "amido")
-    val dictionaryY = listOf("Valori", "Informazioni", "Tabella", "Dichiarazione", "nutrizionale", "nutrizionali")
-    val dictionaryX = listOf("Grassi", "Carboidrati", "Proteine", "Sale", "Sodio")
+    val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "sodio", "fibre", "fibra", "alimentare", "amido")
+    val dictionaryY = listOf("valori", "informazioni", "tabella", "dichiarazione", "nutrizionale", "nutrizionali")
+    val dictionaryX = listOf("grassi", "carboidrati", "proteine", "sale", "sodio")
     val words = mutableListOf<Word>()
     val leven = NormalizedLevenshtein()
     val distanceThresh = 0.5
 }
 
 object IMG {
-    val imgName = "biscotti2" + "." + "jpg"
+    val imgName = "biscotti" + "." + "jpg"
     val resizeRatio = 0.6
     val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
     val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
@@ -154,7 +154,6 @@ fun Mat.rotateToTheta() {
 }
 
 fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_OTSU)
-fun applyOtsuThresh(source: Mat, dest: Mat = source) = threshold(source, dest, 20.0, 255.0, THRESH_OTSU)
 fun applyBinary(source: Mat, dest: Mat = source) = threshold(source, dest, 50.0, 255.0, THRESH_BINARY)
 
 fun crop(source: Mat, rect: Rect): Mat = Mat(source, rect)
@@ -236,21 +235,26 @@ fun getRectForCrop(source: Mat): Rect {
     words.clear()
     words.addAll(source.getWords())
 
-    val cropOffset = 25
-    val wordY = words.map { word -> dictionaryY.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text, dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
-    val wordX = words.map { word -> dictionaryX.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text, dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
+    val cropOffset = 0
+    val wordY = words.map { word -> dictionaryY.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
+    val wordX = words.map { word -> dictionaryX.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
     val x = wordX.boundingBox.x - cropOffset
     val y = wordY.boundingBox.y - cropOffset
+
+    println(x)
+    println(y)
 
     return Rect(x, y, source.size().width() - x, source.size().height() - y)
 }
 
 fun extractNutritionalPropertyNames() {
 
+//    words.forEach { println(it) }
+
     words
             .forEach { ocrWord ->
-                dictionary
-                        .map { dictWord -> CustomDistance(ocrWord, dictWord, leven.distance(ocrWord.text, dictWord)) }
+                dictionaryProperties
+                        .map { dictWord -> CustomDistance(ocrWord, dictWord, leven.distance(ocrWord.text.toLowerCase(), dictWord)) }
                         .filter { it.distance < distanceThresh }
                         .forEach { properties.add(it) }
             }
@@ -262,12 +266,34 @@ fun extractNutritionalPropertyNames() {
                         .minBy { it.distance }
             }
             .distinctBy { it!!.ocrWord }
-            .forEach { println(it) }
+//            .forEach { println(it) }
 }
 
 fun extractNutritionalPropertiesValues() {
 
+    val maxXX = properties.maxBy { it.ocrWord.boundingBox.x + it.ocrWord.boundingBox.width }!!
+    val maxX = maxXX.ocrWord.boundingBox.x + maxXX.ocrWord.boundingBox.width
+    val numRows = properties.mapIndexed { i, p -> if (i + 1 < properties.size) Math.abs(p.ocrWord.boundingBox.y - properties[i + 1].ocrWord.boundingBox.y) else 0 }.filter { it > 5 }.count() + 1
 
+    // valori più a sinistra dei nomi delle proprietà nutrizionali
+    val allRightValues = words.filter { it.boundingBox.x > maxX }.sortedBy { it.boundingBox.x }.take(numRows + 10).sortedBy { it.boundingBox.y }
+
+    allRightValues.sortedBy { it.boundingBox.y }.forEach { println(it.text) }
+
+    val shrinkedList = mutableListOf<Word>()
+    val muSet = setOf("9", "g", "kcal", "kJ")
+
+    allRightValues.mapIndexed { i, p ->
+        if (i + 1 < allRightValues.size) {
+            if ((muSet.contains(allRightValues[i + 1].text)) && Math.abs(p.boundingBox.y - allRightValues[i + 1].boundingBox.y) < 20) {
+                shrinkedList.add(Word(p.text + " g", p.confidence, p.boundingBox))
+            } else if (!muSet.contains(p.text)) {
+                shrinkedList.add(Word(p.text, p.confidence, p.boundingBox))
+            }
+        }
+    }
+
+    shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
 }
 
 data class Line(val rho: Float, val theta: Double, val p1: Point, val p2: Point)
