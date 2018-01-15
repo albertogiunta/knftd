@@ -1,4 +1,6 @@
 import IMG.imgConverter
+import net.sourceforge.tess4j.ITessAPI
+import net.sourceforge.tess4j.Tesseract
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.opencv_core
 import org.bytedeco.javacv.CanvasFrame
@@ -57,3 +59,20 @@ fun opencv_core.Mat.show(title: String = "") {
         showImage(imgConverter.convert(this@show))
     }
 }
+
+fun getTesseractInstance(): Tesseract {
+    val tess = Tesseract()
+    tess.setLanguage("ita")
+    tess.setTessVariable("tessedit_pageseg_mode", "11")
+    tess.setTessVariable("load_system_dawg", "F")
+    tess.setTessVariable("load_freq_dawg", "F")
+    tess.setTessVariable("enable_new_segsearch", "1")
+    tess.setTessVariable("language_model_penalty_non_dict_word", "10000000")
+    tess.setTessVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.%'")
+
+    return tess
+}
+
+fun opencv_core.Mat.getWords() = getTesseractInstance().getWords(this.toBufferedImage(), ITessAPI.TessPageIteratorLevel.RIL_WORD)
+
+fun opencv_core.Mat.getWordsAndPrint() = getTesseractInstance().getWords(this.toBufferedImage(), ITessAPI.TessPageIteratorLevel.RIL_WORD).forEach { println(it.text) }
