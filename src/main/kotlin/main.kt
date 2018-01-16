@@ -3,6 +3,7 @@ import DICT.dictionaryX
 import DICT.dictionaryY
 import DICT.distanceThresh
 import DICT.leven
+import DICT.shrinkedList
 import DICT.words
 import FileUtils.getImg
 import HOUGH.angleResolutionInRadians
@@ -35,15 +36,16 @@ object DICT {
     val words = mutableListOf<Word>()
     val leven = NormalizedLevenshtein()
     val distanceThresh = 0.5
+    val shrinkedList = mutableListOf<Word>()
 }
 
 object IMG {
-    val imgName = "biscotti" + "." + "jpg"
+    val imgName = "olioantiorario" + "." + "jpg"
     val resizeRatio = 0.6
     val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
     val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { resizeSelf(it) }
     val imgConverter = OpenCVFrameConverter.ToMat()
-    val properties = mutableListOf<CustomDistance>()
+    var properties = mutableListOf<CustomDistance>()
 }
 
 object CANNY {
@@ -137,6 +139,8 @@ fun runMainAlgorithm() {
     extractNutritionalPropertyNames()
 
     extractNutritionalPropertiesValues()
+
+    mergePropertiesWithValues()
 }
 
 fun resizeSelf(img: Mat) = resize(img, img, Size((img.size().width() * resizeRatio).toInt(), (img.size().height() * resizeRatio).toInt()))
@@ -215,8 +219,8 @@ fun applyHough(source: Mat) {
 //    println("Result $houghCounter, RIMOSSE ${horizontalLinesList.size} ${verticalLinesList.size}")
 
     finalTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
-    println("mean theta rad " + finalTheta)
-    println("mean theta deg " + finalTheta * 180 / PI)
+//    println("mean theta rad " + finalTheta)
+//    println("mean theta deg " + finalTheta * 180 / PI)
 
     val res2 = Mat().also { originalImg.copyTo(it) }
     //draw lines
@@ -241,9 +245,6 @@ fun getRectForCrop(source: Mat): Rect {
     val x = wordX.boundingBox.x - cropOffset
     val y = wordY.boundingBox.y - cropOffset
 
-    println(x)
-    println(y)
-
     return Rect(x, y, source.size().width() - x, source.size().height() - y)
 }
 
@@ -259,14 +260,32 @@ fun extractNutritionalPropertyNames() {
                         .forEach { properties.add(it) }
             }
 
-    properties
+    val alreadyMergedPropertiesIndexes = mutableListOf<Int>()
+    val newProperties = mutableListOf<CustomDistance>()
+    properties = properties
             .map { main ->
                 properties
                         .filter { it.ocrWord == main.ocrWord }
-                        .minBy { it.distance }
+                        .minBy { it.distance }!!
             }
-            .distinctBy { it!!.ocrWord }
-//            .forEach { println(it) }
+            .distinctBy { it.ocrWord }.toMutableList()
+
+
+
+    properties.forEachIndexed { i, customDistance ->
+        if (!alreadyMergedPropertiesIndexes.contains(i)) {
+            newProperties.add(properties[i])
+            var j = i + 1
+            while (j < properties.size - 1 && Math.abs(properties[i].ocrWord.boundingBox.y - properties[j].ocrWord.boundingBox.y) < 5) {
+                newProperties[newProperties.size - 1] = CustomDistance(properties[j].ocrWord, newProperties.last().dictWord + " " + properties[j].dictWord, newProperties.last().distance)
+                alreadyMergedPropertiesIndexes.add(j)
+                j++
+            }
+        }
+    }
+
+    properties = newProperties
+    newProperties.forEach { println(it) }
 }
 
 fun extractNutritionalPropertiesValues() {
@@ -278,9 +297,8 @@ fun extractNutritionalPropertiesValues() {
     // valori più a sinistra dei nomi delle proprietà nutrizionali
     val allRightValues = words.filter { it.boundingBox.x > maxX }.sortedBy { it.boundingBox.x }.take(numRows + 10).sortedBy { it.boundingBox.y }
 
-    allRightValues.sortedBy { it.boundingBox.y }.forEach { println(it.text) }
+//    allRightValues.sortedBy { it.boundingBox.y }.forEach { println(it.text) }
 
-    val shrinkedList = mutableListOf<Word>()
     val muSet = setOf("9", "g", "kcal", "kJ")
 
     allRightValues.mapIndexed { i, p ->
@@ -293,7 +311,25 @@ fun extractNutritionalPropertiesValues() {
         }
     }
 
-    shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
+//    shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
+}
+
+fun mergePropertiesWithValues() {
+
+    val map = mutableMapOf<CustomDistance, Word>()
+
+    properties.forEach { prop ->
+        shrinkedList
+                .forEach { value ->
+                    println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
+                    if (Math.abs(value.boundingBox.y - prop.ocrWord.boundingBox.y) < 20 && (!map.containsKey(prop) || value.boundingBox.x < map[prop]!!.boundingBox.x)) {
+                        map.put(prop, value)
+                    }
+                }
+    }
+
+    map.forEach { t, u -> println(t.dictWord + " " + u.text) }
+
 }
 
 data class Line(val rho: Float, val theta: Double, val p1: Point, val p2: Point)
