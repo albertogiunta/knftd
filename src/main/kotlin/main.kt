@@ -68,7 +68,7 @@ enum class BinarizationType {
 }
 
 object IMG {
-    val imgName = "riga" + "/" + "biscotti3" + "." + "jpg"
+    val imgName = "riga" + "/" + "verde" + "." + "jpg"
     val resizeRatio = 0.5
     val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
     val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { it.resizeSelf() }
@@ -127,30 +127,25 @@ fun runMainAlgorithm() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NB now originalImg is rotated, let's re-run the previous steps //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     val imgForOCR = originalImgNotResized.clone()
     applyPreprocessingForOCR(imgForOCR, BinarizationType.OTSU)
     val rect = getRectForCrop(imgForOCR)
     val croppedOriginalNotResized = crop(originalImgNotResized, rect)
-
-//    croppedOriginalNotResized.clone().resizeSelf().show("cropped")
-
+    croppedOriginalNotResized.clone().resizeSelf().resizeSelf().show("cropped")
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NB now original image is cropped to be only the table ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
     // 4) correct rotation w/ average horizontal 0
+    applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
     croppedOriginalNotResized.rotateToTheta()
-    croppedOriginalNotResized.clone().resizeSelf().show("Final rotation (resized and cropped)")
+    croppedOriginalNotResized.clone().resizeSelf().resizeSelf().show("Final rotation (resized and cropped)")
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NB now original image is rotated and ready for final ocr ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     val imgForOCR2 = croppedOriginalNotResized.clone()
-    applyPreprocessingForOCR(imgForOCR2, BinarizationType.BINARY)
+    applyPreprocessingForOCR(imgForOCR2, BinarizationType.OTSU)
 
-/*
     words.clear()
     words.addAll(imgForOCR2.getWords())
 
@@ -159,26 +154,37 @@ fun runMainAlgorithm() {
     extractNutritionalPropertiesValues()
 
     mergePropertiesWithValues()
-
+/*
     */
 }
 
-fun applyHoughWithPreprocessing(source: Mat, imgToBeUsedForDisplayingLines: Mat = source) {
+fun applyHoughWithPreprocessing(source: Mat, imgToBeUsedForDisplayingLines: Mat = source.clone()) {
+
+//    source.clone().resizeSelf().show("pre yuv")
+//    val channels = MatVector()
+//    cvtColor(source, source, CV_BGR2YUV)
+//    split(source, channels)
+//    equalizeHist(channels[], channels[0])
+//    merge(channels, source)
+//    cvtColor(source, source, CV_YUV2BGR)
+//    source.clone().resizeSelf().show("yuv")
 
     // 1) convert to greyscale
     convertToGreyscale(source)
-//    source.clone().resizeSelf().show("grayscale")
+    source.clone().resizeSelf().show("grayscale preHough")
+
+//    equalizeHist(source, source)
+//    source.clone().resizeSelf().show("equalize hist preHough")
 
     increaseContrast(source)
-//    source.clone().resizeSelf().show("contrast")
+    source.clone().resizeSelf().show("contrast preHough")
 
     // 2) apply canny edge detection
     applyCanny(source)
-//    source.clone().resizeSelf().show("canny")
+    source.clone().resizeSelf().show("canny preHough")
 
     // 3) apply Hough transform
     applyHough(source, imgToBeUsedForDisplayingLines)
-
 }
 
 fun applyPreprocessingForOCR(source: Mat, binType: BinarizationType) {
@@ -189,23 +195,25 @@ fun applyPreprocessingForOCR(source: Mat, binType: BinarizationType) {
 
     // remove glare
     reduceColor(source)
-    source.clone().resizeSelf().show("reduce color")
+    source.clone().resizeSelf().resizeSelf().show("reduce color forOCR 1")
 
     // 1) convert to greyscale
     convertToGreyscale(source)
-    source.clone().resizeSelf().show("greyscale")
+    source.clone().resizeSelf().resizeSelf().show("greyscale forOCR")
 
     // 1 bis) convert to greyscale
-    increaseContrast(source)
-    source.clone().resizeSelf().show("contrast")
+    increaseContrast2(source)
+    source.clone().resizeSelf().resizeSelf().show("contrast forOCR")
+//    equalizeHist(source, source)
+//    source.clone().resizeSelf().resizeSelf().show("equalize hist preHough")
 
     // 2) apply otsu binary filter
     if (binType == BinarizationType.OTSU) {
         applyOtsu(source)
-        source.clone().resizeSelf().show("otsu")
+        source.clone().resizeSelf().resizeSelf().show("otsu forOCR")
     } else {
         applyBinary(source)
-        source.clone().resizeSelf().show("After binarization (non otsu)")
+        source.clone().resizeSelf().resizeSelf().show("After binarization (non otsu) forOCR")
     }
 }
 
