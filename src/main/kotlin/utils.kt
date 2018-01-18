@@ -68,7 +68,7 @@ fun getTesseractInstance(): Tesseract {
     tess.setTessVariable("load_freq_dawg", "F")
     tess.setTessVariable("enable_new_segsearch", "1")
     tess.setTessVariable("language_model_penalty_non_dict_word", "10000000")
-    tess.setTessVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.%'")
+    tess.setTessVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789,.'")
 
     return tess
 }

@@ -1,4 +1,9 @@
 import CANNY.binaryThreshold
+import CONTRAST.alpha
+import CONTRAST.beta
+import CONTRAST.rType
+import CONTRAST2.alpha2
+import CONTRAST2.beta2
 import DICT.alignedYMargin
 import DICT.dictionaryProperties
 import DICT.dictionaryX
@@ -11,6 +16,8 @@ import DICT.muSet
 import DICT.numberOfRowsToAddToTheActualNumberOfRows
 import DICT.shrinkedList
 import DICT.words
+import DictionaryType.X
+import DictionaryType.Y
 import FileUtils.getImg
 import HOUGH.angleResolutionInRadians
 import HOUGH.distanceResolutionInPixels
@@ -20,19 +27,21 @@ import HOUGH.lines
 import HOUGH.minimumVotes
 import HOUGH.scalar
 import HOUGH.scalar2
-import IMG.originalImg
 import IMG.originalImgNotResized
 import IMG.properties
 import IMG.resizeRatio
 import LINE_SHRINKING.maxRhoTheresold
 import info.debatty.java.stringsimilarity.NormalizedLevenshtein
 import net.sourceforge.tess4j.Word
+import org.bytedeco.javacpp.indexer.FloatIndexer
 import org.bytedeco.javacpp.indexer.FloatRawIndexer
+import org.bytedeco.javacpp.indexer.UByteIndexer
 import org.bytedeco.javacpp.opencv_core.*
 import org.bytedeco.javacpp.opencv_imgcodecs.CV_LOAD_IMAGE_UNCHANGED
 import org.bytedeco.javacpp.opencv_imgcodecs.imread
 import org.bytedeco.javacpp.opencv_imgproc.*
 import org.bytedeco.javacv.OpenCVFrameConverter
+import java.awt.Rectangle
 import java.lang.Math.*
 
 object DICT {
@@ -43,20 +52,40 @@ object DICT {
     val leven = NormalizedLevenshtein()
     val shrinkedList = mutableListOf<Word>()
     val distanceThresh = 0.5
-    val lineMergingYDistance = 5
+    val lineMergingYDistance = 10
     val lineMergingYDistanceForValuesAndPossibleMUOnNextLine = 5
     val numberOfRowsToAddToTheActualNumberOfRows = 10
-    val alignedYMargin = 20
+    val alignedYMargin = 35
     val muSet = setOf("9", "g", "kcal", "kJ")
 }
 
+enum class DictionaryType {
+    X, Y
+}
+
+enum class BinarizationType {
+    OTSU, BINARY
+}
+
 object IMG {
-    val imgName = "libere" + "/" + "olio3" + "." + "jpg"
+    val imgName = "riga" + "/" + "biscotti3" + "." + "jpg"
     val resizeRatio = 0.5
     val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
     val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { it.resizeSelf() }
     val imgConverter = OpenCVFrameConverter.ToMat()
     var properties = mutableListOf<CustomDistance>()
+}
+
+object CONTRAST {
+    val rType = -1 //  desired output matrix type or, rather, the depth since the number of channels are the same as the input has; if rtype is negative, the output matrix will have the same type as the input.
+    val alpha = 1.5 // optional scale factor.
+    val beta = -150.0 // optional delta added to the scaled values.
+}
+
+object CONTRAST2 {
+    val rType = -1 //  desired output matrix type or, rather, the depth since the number of channels are the same as the input has; if rtype is negative, the output matrix will have the same type as the input.
+    val alpha2 = 1.5 // optional scale factor.
+    val beta2 = 50.0 // optional delta added to the scaled values.
 }
 
 object CANNY {
@@ -72,7 +101,7 @@ object HOUGH {
     val minimumVotes = 150
     var finalTheta: Double = 0.0 // degrees
     var lines = Mat()
-    val scalar = Scalar(0.0, 0.0, 0.0, 0.0)
+    val scalar = Scalar(0.0, 0.0, 255.0, 0.0)
     val scalar2 = Scalar(0.0, 0.0, 255.0, 0.0)
 }
 
@@ -87,70 +116,41 @@ fun main(args: Array<String>) {
 
 fun runMainAlgorithm() {
     // copy original image into a new one to be used for filter applying
-    var imgForHough = originalImg.clone()
 
-    // 1) convert to greyscale
-    convertToGreyscale(imgForHough)
-    // 1 bis) convert to greyscale
-    increaseContrast(imgForHough)
-
-    // 2) apply canny edge detection
-    applyCanny(imgForHough)
-
-    // 3) apply Hough transform
-    applyHough(imgForHough)
+    applyHoughWithPreprocessing(originalImgNotResized.clone().resizeSelf())
 
     // 4) correct rotation w/ average horizontal 0
     originalImgNotResized.rotateToTheta()
+//    originalImg.rotateToTheta()
+//    originalImg.show("rotated original")
 
-    // NB now originalImg is rotated, let's re-run the previous steps
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NB now originalImg is rotated, let's re-run the previous steps //////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     val imgForOCR = originalImgNotResized.clone()
-    // 1) convert to greyscale
-    convertToGreyscale(imgForOCR)
-    // 1 bis) convert to greyscale
-    increaseContrast(imgForOCR)
-
-    // 2) apply otsu binary filter
-    applyOtsu(imgForOCR)
-
-    imgForOCR.show("otsu")
-
+    applyPreprocessingForOCR(imgForOCR, BinarizationType.OTSU)
     val rect = getRectForCrop(imgForOCR)
-
     val croppedOriginalNotResized = crop(originalImgNotResized, rect)
 
-    // NB now original image is cropped to be only the table
+//    croppedOriginalNotResized.clone().resizeSelf().show("cropped")
 
-    val imgForHough2 = croppedOriginalNotResized.clone()
-    imgForHough2.resizeSelf()
-
-    // 1) convert to greyscale
-    convertToGreyscale(imgForHough2)
-    increaseContrast(imgForHough2)
-
-    // 2) apply canny edge detection
-    applyCanny(imgForHough2)
-
-    // 3) apply Hough transform
-    applyHough(imgForHough2)
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NB now original image is cropped to be only the table ///////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
     // 4) correct rotation w/ average horizontal 0
     croppedOriginalNotResized.rotateToTheta()
-
     croppedOriginalNotResized.clone().resizeSelf().show("Final rotation (resized and cropped)")
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// NB now original image is rotated and ready for final ocr ///////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     val imgForOCR2 = croppedOriginalNotResized.clone()
-    // 1) convert to greyscale
-    convertToGreyscale(imgForOCR2)
-    // 1 bis) convert to greyscale
-    increaseContrast(imgForOCR2)
+    applyPreprocessingForOCR(imgForOCR2, BinarizationType.BINARY)
 
-    // 2) apply otsu binary filter
-    applyBinary(imgForOCR2)
-
-    imgForOCR2.clone().resizeSelf().show("After binarization (non otsu)")
-
+/*
     words.clear()
     words.addAll(imgForOCR2.getWords())
 
@@ -159,6 +159,54 @@ fun runMainAlgorithm() {
     extractNutritionalPropertiesValues()
 
     mergePropertiesWithValues()
+
+    */
+}
+
+fun applyHoughWithPreprocessing(source: Mat, imgToBeUsedForDisplayingLines: Mat = source) {
+
+    // 1) convert to greyscale
+    convertToGreyscale(source)
+//    source.clone().resizeSelf().show("grayscale")
+
+    increaseContrast(source)
+//    source.clone().resizeSelf().show("contrast")
+
+    // 2) apply canny edge detection
+    applyCanny(source)
+//    source.clone().resizeSelf().show("canny")
+
+    // 3) apply Hough transform
+    applyHough(source, imgToBeUsedForDisplayingLines)
+
+}
+
+fun applyPreprocessingForOCR(source: Mat, binType: BinarizationType) {
+
+//    sharpen
+//    sharpen(source)
+//    imgForOCR.clone().resizeSelf().show("sharpen")
+
+    // remove glare
+    reduceColor(source)
+    source.clone().resizeSelf().show("reduce color")
+
+    // 1) convert to greyscale
+    convertToGreyscale(source)
+    source.clone().resizeSelf().show("greyscale")
+
+    // 1 bis) convert to greyscale
+    increaseContrast(source)
+    source.clone().resizeSelf().show("contrast")
+
+    // 2) apply otsu binary filter
+    if (binType == BinarizationType.OTSU) {
+        applyOtsu(source)
+        source.clone().resizeSelf().show("otsu")
+    } else {
+        applyBinary(source)
+        source.clone().resizeSelf().show("After binarization (non otsu)")
+    }
 }
 
 fun Mat.resizeSelf(): Mat {
@@ -166,9 +214,45 @@ fun Mat.resizeSelf(): Mat {
     return this
 }
 
+fun convertToHSV(source: Mat, dest: Mat = source) = cvtColor(source, dest, COLOR_BGR2HSV_FULL)
+
 fun convertToGreyscale(source: Mat, dest: Mat = source) = cvtColor(source, dest, CV_BGR2GRAY)
 
-fun increaseContrast(source: Mat) = source.convertTo(source, -1, 1.5, -100.0)
+fun increaseContrast(source: Mat) = source.convertTo(source, rType, alpha, beta)
+
+fun increaseContrast2(source: Mat) = source.convertTo(source, rType, alpha2, beta2)
+
+fun sharpen(source: Mat): Mat {
+    // Construct sharpening kernel, oll unassigned values are 0
+    val kernel = Mat(3, 3, CV_32F, Scalar(0))
+
+    // Indexer is used to access value in the matrix
+    val ki = kernel.createIndexer() as FloatIndexer
+    ki.put(1.0.toLong(), 1.toFloat(), 5.toFloat())
+    ki.put(0.0.toLong(), 1.0.toFloat(), (-1).toFloat())
+    ki.put(2.0.toLong(), 1.0.toFloat(), (-1).toFloat())
+    ki.put(1.0.toLong(), 0.0.toFloat(), (-1).toFloat())
+    ki.put(1.0.toLong(), 2.0.toFloat(), (-1).toFloat())
+
+    // Filter the image
+    filter2D(source, source, source.depth(), kernel)
+    return source
+}
+
+fun reduceColor(source: Mat) {
+    val div = 64
+    val indexer = source.createIndexer() as UByteIndexer
+    // Total number of elements, combining components from each channel
+    val nbElements = source.rows() * source.cols() * source.channels()
+    for (i in 0 until nbElements) {
+        // Convert to integer, byte is treated as an unsigned value
+        val v = indexer.get(i.toLong())
+        // Use integer division to reduce number of values
+        val newV = v / div * div + div / 2
+        // Put back into the image
+        indexer.put(i.toLong(), newV)
+    }
+}
 
 fun applyCanny(source: Mat, dest: Mat = source) = Canny(source, dest, CANNY.threshold, (CANNY.threshold * 1), CANNY.apertureSize, true)
 
@@ -184,7 +268,7 @@ fun applyBinary(source: Mat, dest: Mat = source) = threshold(source, dest, binar
 
 fun crop(source: Mat, rect: Rect): Mat = Mat(source, rect)
 
-fun applyHough(source: Mat) {
+fun applyHough(source: Mat, matForDisplay: Mat) {
 
     lines = Mat()
     HoughLines(source, lines, distanceResolutionInPixels, angleResolutionInRadians, minimumVotes)
@@ -240,7 +324,7 @@ fun applyHough(source: Mat) {
 
     finalTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
 
-    val res2 = Mat().also { originalImg.copyTo(it) }
+    val res2 = matForDisplay.clone()
     //draw lines
     horizontalLinesList.forEach { line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0) }
     verticalLinesList.forEach {
@@ -248,20 +332,44 @@ fun applyHough(source: Mat) {
         else line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0)
     }
 
+    res2.clone().resizeSelf().show("hough " + houghCounter)
+
     houghCounter = houghCounter + 1
 }
 
 fun getRectForCrop(source: Mat): Rect {
+    val cropOffset = 30
 
     words.clear()
     words.addAll(source.getWords())
 
-    val cropOffset = 0
+    fun getWordForCrop(dictionaryType: DictionaryType): CustomDistance {
+        val dictionary = when (dictionaryType) {
+            X -> dictionaryX
+            Y -> dictionaryY
+        }
+
+        return words
+                .map { word ->
+                    dictionary
+                            .map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord)) }
+                            .minWith(if (dictionaryType == X) compareBy({ it.distance }, { it.ocrWord.boundingBox.x }) else compareBy({ it.distance }, { it.ocrWord.boundingBox.y }))!!
+                }
+                .filter { it.distance < distanceThresh }
+                .minWith(if (dictionaryType == X) compareBy({ it.ocrWord.boundingBox.x }, { it.distance }) else compareBy({ it.distance }, { it.ocrWord.boundingBox.y }))!!
+    }
+
     //Computes the levenstein distance for each word with selected dictionaries which contain the keywords for cropping
-    val wordY = words.map { word -> dictionaryY.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
-    val wordX = words.map { word -> dictionaryX.map { dictWord -> CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord)) }.minBy { it.distance } }.minBy { it!!.distance }!!.ocrWord
-    val x = wordX.boundingBox.x - cropOffset
-    val y = wordY.boundingBox.y - cropOffset
+    val wordY = getWordForCrop(Y)
+    val wordX = getWordForCrop(X)
+    var x = wordX.ocrWord.boundingBox.x - cropOffset
+    var y = wordY.ocrWord.boundingBox.y - cropOffset
+    if (x < 0) x = 0
+    if (y < 0) y = 0
+
+    words.sortedBy { it.boundingBox.x }.forEach { println(it) }
+
+    println("words used for crop: | ${wordY} | \nand\n | ${wordX} |")
 
     return Rect(x, y, source.size().width() - x, source.size().height() - y)
 }
@@ -301,15 +409,21 @@ fun extractNutritionalPropertyNames() {
             var j = i + 1
             //Check next Words, if they have almost the same Y values it means that they are on the same line, and it add the text to the current Word text
             while (j < properties.size - 1 && Math.abs(properties[i].ocrWord.boundingBox.y - properties[j].ocrWord.boundingBox.y) < lineMergingYDistance) {
-                newProperties[newProperties.size - 1] = CustomDistance(properties[j].ocrWord, newProperties.last().dictWord + " " + properties[j].dictWord, newProperties.last().distance)
+                newProperties[newProperties.size - 1] = CustomDistance(
+                        Word(properties[j].ocrWord.text, properties[j].ocrWord.confidence, Rectangle(properties[i].ocrWord.boundingBox.x, properties[i].ocrWord.boundingBox.y, newProperties.last().ocrWord.boundingBox.width + properties[j].ocrWord.boundingBox.width, newProperties.last().ocrWord.boundingBox.height + properties[j].ocrWord.boundingBox.height)),
+                        newProperties.last().dictWord + " " + properties[j].dictWord,
+                        newProperties.last().distance)
                 alreadyMergedPropertiesIndexes.add(j)
                 j++
             }
         }
     }
 
-    properties = newProperties
-    newProperties.forEach { println(it) }
+    val averageMostAccurateX = newProperties.filter { it.distance < 0.3 }.map { it.ocrWord.boundingBox.x }.average()
+    //properties.forEach { println(it) }
+    properties = newProperties.filter { Math.abs(it.ocrWord.boundingBox.x - averageMostAccurateX) < 200 }.toMutableList()
+    println(".......................:")
+    properties.forEach { println(it) }
 }
 
 fun extractNutritionalPropertiesValues() {
@@ -335,8 +449,12 @@ fun extractNutritionalPropertiesValues() {
         }
     }
 
-//    shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
+    printlndiv()
+    shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
+    printlndiv()
 }
+
+fun printlndiv() = println("/////////////////////////////////////////////////////////////////////////////////")
 
 fun mergePropertiesWithValues() {
 
@@ -353,6 +471,15 @@ fun mergePropertiesWithValues() {
                 }
     }
 
+    map.forEach { i, u ->
+        if (u.text.endsWith("9")) {
+            map[i] = Word(u.text.dropLast(1) + " g", u.confidence, u.boundingBox)
+        } else if (!u.text.endsWith("g") && !u.text.endsWith("kcal") && !u.text.endsWith("kJ")) {
+            map[i] = Word(u.text + " g", u.confidence, u.boundingBox)
+        }
+    }
+
+    printlndiv()
     map.forEach { t, u -> println(t.dictWord + " " + u.text) }
 
 }
