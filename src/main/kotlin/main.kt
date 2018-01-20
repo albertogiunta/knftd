@@ -1,4 +1,4 @@
-import CANNY.binaryThreshold
+import BINARIZATION.binaryThreshold
 import CONTRAST.alpha
 import CONTRAST.beta
 import CONTRAST.rType
@@ -9,7 +9,7 @@ import DICT.dictionaryProperties
 import DICT.dictionaryX
 import DICT.dictionaryY
 import DICT.distanceThresh
-import DICT.leven
+import DICT.levenhtein
 import DICT.lineMergingYDistance
 import DICT.lineMergingYDistanceForValuesAndPossibleMUOnNextLine
 import DICT.muSet
@@ -25,15 +25,16 @@ import HOUGH.finalTheta
 import HOUGH.houghCounter
 import HOUGH.lines
 import HOUGH.minimumVotes
+import HOUGH.minimumVotesStep
+import HOUGH.minimumVotesToConsider
 import HOUGH.scalar
-import HOUGH.scalar2
+import IMG.originalImg
 import IMG.originalImgNotResized
 import IMG.properties
 import IMG.resizeRatio
-import LINE_SHRINKING.maxRhoTheresold
+import LINESHRINKING.maxRhoThereshold
 import info.debatty.java.stringsimilarity.NormalizedLevenshtein
 import net.sourceforge.tess4j.Word
-import org.bytedeco.javacpp.indexer.FloatIndexer
 import org.bytedeco.javacpp.indexer.FloatRawIndexer
 import org.bytedeco.javacpp.indexer.UByteIndexer
 import org.bytedeco.javacpp.opencv_core.*
@@ -44,37 +45,19 @@ import org.bytedeco.javacv.OpenCVFrameConverter
 import java.awt.Rectangle
 import java.lang.Math.*
 
+
 object DICT {
-    val dictionaryProperties = listOf(
-        "energia",
-        "energetico",
-        "grassi",
-        "acidi",
-        "saturi",
-        "insaturi",
-        "monoinsaturi",
-        "polinsaturi",
-        "carboidrati",
-        "zuccheri",
-        "proteine",
-        "fibre",
-        "sale",
-        "sodio",
-        "fibre",
-        "fibra",
-        "alimentare",
-        "amido"
-    )
+    val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "sodio", "fibre", "fibra", "alimentare", "amido")
     val dictionaryY = listOf("informazioni", "tabella", "dichiarazione", "nutrizionale", "nutrizionali")
     val dictionaryX = listOf("energia", "grassi", "carboidrati", "proteine", "sale")
     val words = mutableListOf<Word>()
-    val leven = NormalizedLevenshtein()
+    val levenhtein = NormalizedLevenshtein()
     val shrinkedList = mutableListOf<Word>()
-    val distanceThresh = 0.5
-    val lineMergingYDistance = 25
-    val lineMergingYDistanceForValuesAndPossibleMUOnNextLine = 15
-    val numberOfRowsToAddToTheActualNumberOfRows = 20
-    val alignedYMargin = 50
+    const val distanceThresh = 0.5
+    const val lineMergingYDistance = 25
+    const val lineMergingYDistanceForValuesAndPossibleMUOnNextLine = 15
+    const val numberOfRowsToAddToTheActualNumberOfRows = 20
+    const val alignedYMargin = 50
     val muSet = setOf("8", "9", "g", "kcal", "kJ")
 }
 
@@ -87,8 +70,8 @@ enum class BinarizationType {
 }
 
 object IMG {
-    val imgName = "riga/biancosunero" + "/" + "training" + "/" + "biscotti" + "." + "jpg"
-    val resizeRatio = 0.5
+    private const val imgName = "colore" + "/" + "training" + "/" + "panna" + "." + "jpg"
+    const val resizeRatio = 0.5
     val originalImgNotResized: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED)
     val originalImg: Mat = imread(getImg(imgName), CV_LOAD_IMAGE_UNCHANGED).also { it.resizeSelf() }
     val imgConverter = OpenCVFrameConverter.ToMat()
@@ -96,55 +79,53 @@ object IMG {
 }
 
 object CONTRAST {
-    val rType = -1      //  desired output matrix type or, rather, the depth since the number of channels are the same as the input has; if rtype is negative, the output matrix will have the same type as the input.
-    val alpha = 1.55 // optional scale factor.
-    val beta = -25.5 // optional delta added to the scaled values.
+    const val rType = -1      //  desired output matrix type or, rather, the depth since the number of channels are the same as the input has; if rtype is negative, the output matrix will have the same type as the input.
+    const val alpha = 1.55 // optional scale factor.
+    const val beta = -25.5 // optional delta added to the scaled values.
 }
 
 object CONTRAST2 {
     val rType = -1 //  desired output matrix type or, rather, the depth since the number of channels are the same as the input has; if rtype is negative, the output matrix will have the same type as the input.
     val alpha2 = 1.5 // optional scale factor.
-    val beta2 = -50.0 // optional delta added to the scaled values.
+    val beta2 = -25.0 // optional delta added to the scaled values.
 }
 
-object CANNY {
-    val threshold = 70.0
-    val apertureSize = 3
-    val binaryThreshold = 110.0
+object BINARIZATION {
+    const val binaryThreshold = 110.0
 }
 
 object HOUGH {
     var houghCounter = 1
-    val distanceResolutionInPixels: Double = 1.0 // rho
-    val angleResolutionInRadians: Double = PI / 180 // theta
-    val minimumVotes = 150
+    const val distanceResolutionInPixels: Double = 1.0 // rho
+    const val angleResolutionInRadians: Double = PI / 180 // theta
+    var minimumVotes = 1000
+    var minimumVotesToConsider = 3
+    var minimumVotesStep = 100
     var finalTheta: Double = 0.0 // degrees
     var lines = Mat()
     val scalar = Scalar(0.0, 0.0, 255.0, 0.0)
-    val scalar2 = Scalar(0.0, 0.0, 255.0, 0.0)
 }
 
-object LINE_SHRINKING {
-    val maxRhoTheresold = 500
+object LINESHRINKING {
+    const val maxRhoThereshold = 500
 }
 
 fun main(args: Array<String>) {
     runMainAlgorithm()
-//    getRectForCrop()
 }
 
 fun runMainAlgorithm() {
-    // copy original image into a new one to be used for filter applying
-
     applyHoughWithPreprocessing(originalImgNotResized.clone().resizeSelf())
 
-    // 4) correct rotation w/ average horizontal 0
+    // correct rotation w/ average horizontal 0
     originalImgNotResized.rotateToTheta()
-//    originalImg.rotateToTheta()
-//    originalImg.show("rotated original")
+    originalImg.rotateToTheta()
+    originalImg.resizeSelf().show("rotated original")
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NB now originalImg is rotated, let's re-run the previous steps //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/*
     val imgForOCR = originalImgNotResized.clone()
     applyPreprocessingForOCR(imgForOCR, BinarizationType.BINARY)
     val rect = getRectForCrop(imgForOCR)
@@ -154,7 +135,7 @@ fun runMainAlgorithm() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NB now original image is cropped to be only the table ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // 4) correct rotation w/ average horizontal 0
+    // correct rotation w/ average horizontal 0
     applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
     croppedOriginalNotResized.rotateToTheta()
     croppedOriginalNotResized.clone().resizeSelf().resizeSelf().show("Final rotation (resized and cropped)")
@@ -167,64 +148,43 @@ fun runMainAlgorithm() {
 
     words.clear()
     words.addAll(imgForOCR2.getWords())
-
     extractNutritionalPropertyNames()
-
     extractNutritionalPropertiesValues()
-
     mergePropertiesWithValues()
+    */
 }
 
 fun applyHoughWithPreprocessing(source: Mat, imgToBeUsedForDisplayingLines: Mat = source.clone()) {
-
-//    source.clone().resizeSelf().show("pre yuv")
-//    val channels = MatVector()
-//    cvtColor(source, source, CV_BGR2YUV)
-//    split(source, channels)
-//    equalizeHist(channels[], channels[0])
-//    merge(channels, source)
-//    cvtColor(source, source, CV_YUV2BGR)
-//    source.clone().resizeSelf().show("yuv")
-
-    // 1) convert to greyscale
+    // convert to greyscale
     convertToGreyscale(source)
     source.clone().resizeSelf().show("grayscale preHough")
-
-//    equalizeHist(source, source)
-//    source.clone().resizeSelf().show("equalize hist preHough")
 
     increaseContrast(source)
     source.clone().resizeSelf().show("contrast preHough")
 
-    // 2) apply canny edge detection
-    applyCanny(source)
-    source.clone().resizeSelf().show("canny preHough")
+    // apply sobel + otsu edge detection
+    applySobel(source)
+    applyOtsu(source)
+    source.resizeSelf().show("sobelX")
 
-    // 3) apply Hough transform
+    // apply Hough transform
     applyHough(source, imgToBeUsedForDisplayingLines)
 }
 
 fun applyPreprocessingForOCR(source: Mat, binType: BinarizationType) {
-
-//    sharpen
-//    sharpen(source)
-//    imgForOCR.clone().resizeSelf().show("sharpen")
-
-    // remove glare
+    // reduce color
     reduceColor(source)
     source.clone().resizeSelf().resizeSelf().show("reduce color forOCR 1")
 
-    // 1) convert to greyscale
+    // convert to greyscale
     convertToGreyscale(source)
     source.clone().resizeSelf().resizeSelf().show("greyscale forOCR")
 
-    // 1 bis) convert to greyscale
+    // convert to greyscale
     increaseContrast2(source)
     source.clone().resizeSelf().resizeSelf().show("contrast forOCR")
-//    equalizeHist(source, source)
-//    source.clone().resizeSelf().resizeSelf().show("equalize hist preHough")
 
-    // 2) apply otsu binary filter
+    // apply otsu binary filter
     if (binType == BinarizationType.OTSU) {
         applyOtsu(source)
         source.clone().resizeSelf().resizeSelf().show("otsu forOCR")
@@ -239,31 +199,22 @@ fun Mat.resizeSelf(): Mat {
     return this
 }
 
-fun convertToHSV(source: Mat, dest: Mat = source) = cvtColor(source, dest, COLOR_BGR2HSV_FULL)
-
 fun convertToGreyscale(source: Mat, dest: Mat = source) = cvtColor(source, dest, CV_BGR2GRAY)
 
 fun increaseContrast(source: Mat) = source.convertTo(source, rType, alpha, beta)
 
 fun increaseContrast2(source: Mat) = source.convertTo(source, rType, alpha2, beta2)
 
-//fun increaseContrast3(source: Mat) = source.convertTo(source, rType, alpha3, beta3)
-
-fun sharpen(source: Mat): Mat {
-    // Construct sharpening kernel, oll unassigned values are 0
-    val kernel = Mat(3, 3, CV_32F, Scalar(0))
-
-    // Indexer is used to access value in the matrix
-    val ki = kernel.createIndexer() as FloatIndexer
-    ki.put(1.0.toLong(), 1.toFloat(), 5.toFloat())
-    ki.put(0.0.toLong(), 1.0.toFloat(), (-1).toFloat())
-    ki.put(2.0.toLong(), 1.0.toFloat(), (-1).toFloat())
-    ki.put(1.0.toLong(), 0.0.toFloat(), (-1).toFloat())
-    ki.put(1.0.toLong(), 2.0.toFloat(), (-1).toFloat())
-
-    // Filter the image
-    filter2D(source, source, source.depth(), kernel)
-    return source
+fun applySobel(source: Mat) {
+    val gradX = Mat()
+    val gradY = Mat()
+    val absGradX = Mat()
+    val absGradY = Mat()
+    Sobel(source, gradX, CV_16S, 1, 0, 3, 1.0, 0.0, BORDER_DEFAULT)
+    Sobel(source, gradY, CV_16S, 0, 1, 3, 1.0, 0.0, BORDER_DEFAULT)
+    convertScaleAbs(gradX, absGradX)
+    convertScaleAbs(gradY, absGradY)
+    addWeighted(absGradX, 0.5, absGradY, 0.5, 0.0, source)
 }
 
 fun reduceColor(source: Mat) {
@@ -281,19 +232,13 @@ fun reduceColor(source: Mat) {
     }
 }
 
-fun applyCanny(source: Mat, dest: Mat = source) =
-    Canny(source, dest, CANNY.threshold, (CANNY.threshold * 1), CANNY.apertureSize, true)
-
 fun Mat.rotateToTheta() {
     if (finalTheta != 0.0) {
         warpAffine(this, this, getRotationMatrix2D(Point2f((this.size().width() / 2).toFloat(), (this.size().height() / 2).toFloat()), finalTheta, 1.0), this.size())
     }
 }
 
-fun applyOtsu(source: Mat, dest: Mat = source) {
-    GaussianBlur(source, source, Size(5, 5), 0.0)
-    threshold(source, dest, 0.0, 255.0, THRESH_BINARY + THRESH_OTSU)
-}
+fun applyOtsu(source: Mat, dest: Mat = source) = threshold(source, dest, 0.0, 255.0, THRESH_BINARY + THRESH_OTSU)
 
 fun applyBinary(source: Mat, dest: Mat = source) = threshold(source, dest, binaryThreshold, 255.0, THRESH_BINARY)
 
@@ -347,7 +292,7 @@ fun applyHough(source: Mat, matForDisplay: Mat) {
         for (i in 0 until list.size) {
             for (j in i + 1 until list.size - 1) {
                 if (j < list.size) {
-                    val shouldBeRemoved = Math.abs(list[i].rho - list[j].rho) < maxRhoTheresold
+                    val shouldBeRemoved = Math.abs(list[i].rho - list[j].rho) < maxRhoThereshold
                     if (shouldBeRemoved) {
                         list.removeAt(j)
                     } else break
@@ -359,19 +304,25 @@ fun applyHough(source: Mat, matForDisplay: Mat) {
     removeLines(horizontalLinesList)
     removeLines(verticalLinesList)
 
-    finalTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
+    val vertTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
+    val horTheta = if (horizontalLinesList.isNotEmpty()) horizontalLinesList.map { it.theta.toDegrees() }.average() - 90 else 0.0
+    finalTheta = listOf(vertTheta, horTheta).average()
+    println("$vertTheta $horTheta $finalTheta")
 
     val res2 = matForDisplay.clone()
     //draw lines
     horizontalLinesList.forEach { line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0) }
-    verticalLinesList.forEach {
-        if (it.theta == 0.0) line(res2, it.p1, it.p2, scalar2, 1, LINE_8, 0)
-        else line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0)
+    verticalLinesList.forEach { line(res2, it.p1, it.p2, scalar, 1, LINE_8, 0) }
+
+
+    if (verticalLinesList.size < minimumVotesToConsider && horizontalLinesList.size < minimumVotesToConsider) {
+        minimumVotes -= minimumVotesStep
+        applyHough(source, matForDisplay)
+    } else {
+        res2.clone().resizeSelf().show("applied hough n°$houghCounter | minimumVotes: $minimumVotes")
+        houghCounter += 1
+        minimumVotes = 1000
     }
-
-    res2.clone().resizeSelf().show("hough " + houghCounter)
-
-    houghCounter = houghCounter + 1
 }
 
 fun getRectForCrop(source: Mat): Rect {
@@ -390,11 +341,11 @@ fun getRectForCrop(source: Mat): Rect {
             .map { word ->
                 dictionary
                     .map { dictWord ->
-                        val distance = leven.distance(word.text.toLowerCase(), dictWord)
+                        val distance = levenhtein.distance(word.text.toLowerCase(), dictWord)
                         var boxCoordinate = if (dictionaryType == X) word.boundingBox.x else word.boundingBox.y
                         boxCoordinate = if (boxCoordinate == 0) 10 else boxCoordinate
                         val weight = distance * boxCoordinate
-                        CustomDistance(word, dictWord, leven.distance(word.text.toLowerCase(), dictWord), weight)
+                        CustomDistance(word, dictWord, levenhtein.distance(word.text.toLowerCase(), dictWord), weight)
                     }
                     .minBy { it.weight }!!
             }
@@ -418,21 +369,19 @@ fun getRectForCrop(source: Mat): Rect {
 
 //    words.sortedBy { it.boundingBox.x }.forEach { println(it) }
 
-    println("words used for crop: | ${wordY} | \nand\n | ${wordX} |")
+    println("words used for crop: | $wordY | \nand\n | $wordX |")
 
     return Rect(x, y, source.size().width() - x, source.size().height() - y)
 }
 
 fun extractNutritionalPropertyNames() {
 
-    words.forEach {
-        println(it.text + " y:" + it.boundingBox.y + " --conf: " + leven.distance(it.text.toLowerCase(), "grassi"))
-    }
+    words.forEach { println(it.text + " y:" + it.boundingBox.y + " --conf: " + levenhtein.distance(it.text.toLowerCase(), "grassi")) }
     //Foreach word found by tesseract, it saves in a different structure only the words that are equal or similar to the ones in the dictionary
     words
         .forEach { ocrWord ->
             dictionaryProperties
-                .map { dictWord -> CustomDistance(ocrWord, dictWord, leven.distance(ocrWord.text.toLowerCase(), dictWord)) }
+                .map { dictWord -> CustomDistance(ocrWord, dictWord, levenhtein.distance(ocrWord.text.toLowerCase(), dictWord)) }
                 .filter { it.distance <= distanceThresh }
                 .forEach { properties.add(it) }
         }
@@ -440,7 +389,7 @@ fun extractNutritionalPropertyNames() {
     //Contains indexes of words that have already been merged with a previous word
     val alreadyMergedPropertiesIndexes = mutableListOf<Int>()
     //Contains merged proprieties (like "acidi grassi saturi")
-    var newProperties = mutableListOf<CustomDistance>()
+    val newProperties = mutableListOf<CustomDistance>()
     //Filters the words that match with more than one dictionary word, keeping only the one that matches more (has the smallest distance)
     val propertiesToKeep = properties
         .map { main ->
@@ -451,12 +400,10 @@ fun extractNutritionalPropertyNames() {
         .distinctBy { it.dictWord }
         .toMutableList()
     val propToRemove = properties.subtract(propertiesToKeep)
-    properties = properties.subtract(propToRemove.filterNot { it.dictWord.equals("grassi") }
-    ).toMutableList()
+    properties = properties.subtract(propToRemove.filterNot { it.dictWord == "grassi" }).toMutableList()
 
     printlndiv()
     properties.forEach { println(it) }
-
 
     properties.forEachIndexed { i, _ ->
         //If the word has not been merged already
@@ -533,7 +480,7 @@ fun mergePropertiesWithValues() {
             .forEach { value ->
                 println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
                 if (Math.abs(value.boundingBox.y - prop.ocrWord.boundingBox.y) < alignedYMargin && (!map.containsKey(prop) || value.boundingBox.x < map[prop]!!.boundingBox.x)) {
-                    map.put(prop, value)
+                    map[prop] = value
                 }
             }
     }
