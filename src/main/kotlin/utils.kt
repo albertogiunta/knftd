@@ -32,6 +32,8 @@ fun Image.toBufferedImage(): BufferedImage {
     return bufferedImage
 }
 
+fun printlndiv() = println("/////////////////////////////////////////////////////////////////////////////////")
+
 fun Double.toDegrees() = this * 180 / PI
 
 fun opencv_core.Mat.toBufferedImage(): BufferedImage = Java2DFrameConverter().convert(imgConverter.convert(this))
