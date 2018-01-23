@@ -1,13 +1,26 @@
-import IMG.imgConverter
+import CONST.imgConverter
+import CONST.resizeRatio
 import net.sourceforge.tess4j.ITessAPI
 import net.sourceforge.tess4j.Tesseract
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.opencv_core
+import org.bytedeco.javacpp.opencv_imgproc
 import org.bytedeco.javacv.CanvasFrame
 import org.bytedeco.javacv.Java2DFrameConverter
+import org.bytedeco.javacv.OpenCVFrameConverter
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.lang.Math.PI
+
+object CONST {
+    val resizeRatio = 0.5
+
+    val imgConverter = OpenCVFrameConverter.ToMat()
+}
+
+enum class BinarizationType {
+    OTSU, BINARY
+}
 
 object FileUtils {
 
@@ -55,6 +68,7 @@ fun opencv_core.Mat.toMat8U(doScaling: Boolean = true): opencv_core.Mat {
 }
 
 fun opencv_core.Mat.show(title: String = "") {
+
     CanvasFrame(title).apply {
         isResizable = true
         setCanvasSize(this@show.size().width(), this@show.size().height())
@@ -78,3 +92,8 @@ fun getTesseractInstance(): Tesseract {
 fun opencv_core.Mat.getWords() = getTesseractInstance().getWords(this.toBufferedImage(), ITessAPI.TessPageIteratorLevel.RIL_WORD)
 
 fun opencv_core.Mat.getWordsAndPrint() = getTesseractInstance().getWords(this.toBufferedImage(), ITessAPI.TessPageIteratorLevel.RIL_WORD).forEach { println(it.text) }
+
+fun opencv_core.Mat.resizeSelf(): opencv_core.Mat {
+    opencv_imgproc.resize(this, this, opencv_core.Size((this.size().width() * resizeRatio).toInt(), (this.size().height() * resizeRatio).toInt()))
+    return this
+}
