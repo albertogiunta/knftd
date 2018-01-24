@@ -27,8 +27,12 @@ class MainAlgorithm(imgName : String){
         val croppedOriginalNotResized = imageProcessor.crop(originalImgNotResized, rect)
         //croppedOriginalNotResized.clone().resizeSelf().resizeSelf().show("cropped")
 
+        applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
+        imageProcessor.rotate(croppedOriginalNotResized)
+
         val imgForOCR2 = croppedOriginalNotResized.clone()
         applyPreprocessingForOCR(imgForOCR2, BinarizationType.BINARY)
+        words.clear()
         words.addAll(ocrProcessor.extractWords(imgForOCR2))
 
         val properties = ocrProcessor.extractNutritionalPropertyNames(words)
@@ -90,18 +94,18 @@ class MainAlgorithm(imgName : String){
     }
 
     private fun drawRectOnImage(map : Map<CustomDistance, Word>, image : opencv_core.Mat){
-        map.keys.forEach {
-            opencv_imgproc.rectangle(image,
-                    opencv_core.Point(it.ocrWord.boundingBox.x, it.ocrWord.boundingBox.y),
-                    opencv_core.Point(it.ocrWord.boundingBox.x + it.ocrWord.boundingBox.width, it.ocrWord.boundingBox.y + it.ocrWord.boundingBox.height),
-                    opencv_core.Scalar.GREEN, 3, opencv_core.LINE_8, 0)
-        }
 
-        map.values.forEach {
+        map.forEach { t, u ->
             opencv_imgproc.rectangle(image,
-                    opencv_core.Point(it.boundingBox.x, it.boundingBox.y),
-                    opencv_core.Point(it.boundingBox.x + it.boundingBox.width, it.boundingBox.y + it.boundingBox.height),
+                    opencv_core.Point(t.ocrWord.boundingBox.x, t.ocrWord.boundingBox.y),
+                    opencv_core.Point(t.ocrWord.boundingBox.x + t.ocrWord.boundingBox.width, t.ocrWord.boundingBox.y + t.ocrWord.boundingBox.height),
                     opencv_core.Scalar.BLUE, 3, opencv_core.LINE_8, 0)
+
+            opencv_imgproc.rectangle(image,
+                    opencv_core.Point(u.boundingBox.x, u.boundingBox.y),
+                    opencv_core.Point(u.boundingBox.x + u.boundingBox.width, u.boundingBox.y + u.boundingBox.height),
+                    opencv_core.Scalar.YELLOW, 3, opencv_core.LINE_8, 0)
+
         }
 
     }

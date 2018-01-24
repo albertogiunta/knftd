@@ -129,13 +129,12 @@ class ImageProcessor {
         val vertTheta = if (verticalLinesList.isNotEmpty()) verticalLinesList.map { it.theta.toDegrees() }.average() else 0.0
         val horTheta = if (horizontalLinesList.isNotEmpty()) horizontalLinesList.map { it.theta.toDegrees() }.average() - 90 else 0.0
         finalTheta = listOf(vertTheta, horTheta).average()
-        println("$vertTheta $horTheta $finalTheta")
+        //println("$vertTheta $horTheta $finalTheta")
 
         val res2 = matForDisplay.clone()
         //draw lines
         horizontalLinesList.forEach { opencv_imgproc.line(res2, it.p1, it.p2, opencv_core.Scalar.RED, 1, opencv_core.LINE_8, 0) }
         verticalLinesList.forEach { opencv_imgproc.line(res2, it.p1, it.p2, opencv_core.Scalar.RED, 1, opencv_core.LINE_8, 0) }
-
 
         if (verticalLinesList.size < minimumVotesToConsider && horizontalLinesList.size < minimumVotesToConsider) {
             minimumVotes -= minimumVotesStep

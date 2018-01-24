@@ -13,11 +13,11 @@ data class CustomDistance(val ocrWord: Word, val dictWord: String, val distance:
 
 class OCRProcessor {
 
-    private val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "sodio", "fibre", "fibra", "alimentare", "amido")
+    private val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "fibre", "fibra", "alimentare")
     private val dictionaryY = listOf("informazioni", "tabella", "dichiarazione", "nutrizionale", "nutrizionali")
     private val dictionaryX = listOf("energia", "grassi", "carboidrati", "proteine", "sale")
     private val distanceThresh = 0.5
-    private val lineMergingYDistance = 25
+    private val lineMergingYDistance = 50
     private val lineMergingYDistanceForValuesAndPossibleMUOnNextLine = 15
     private val numberOfRowsToAddToTheActualNumberOfRows = 20
     private val alignedYMargin = 30
@@ -27,7 +27,7 @@ class OCRProcessor {
 
     fun extractNutritionalPropertyNames(words : List<Word>) : List<CustomDistance> {
         var properties = mutableListOf<CustomDistance>()
-        words.forEach { println(it.text + " y:" + it.boundingBox.y + " --conf: " + levenshtein.distance(it.text.toLowerCase(), "grassi")) }
+        //words.forEach { println(it.text + " y:" + it.boundingBox.y + " --conf: " + levenshtein.distance(it.text.toLowerCase(), "grassi")) }
         //Foreach word found by tesseract, it saves in a different structure only the words that are equal or similar to the ones in the dictionary
         words
                 .forEach { ocrWord ->
@@ -53,8 +53,8 @@ class OCRProcessor {
         val propToRemove = properties.subtract(propertiesToKeep)
         properties = properties.subtract(propToRemove.filterNot { it.dictWord == "grassi" }).toMutableList()
 
-        printlndiv()
-        properties.forEach { println(it) }
+        //printlndiv()
+        //properties.forEach { println(it) }
 
         properties.forEachIndexed { i, _ ->
             //If the word has not been merged already
@@ -84,7 +84,7 @@ class OCRProcessor {
             }
         }
 
-        val averageMostAccurateX = newProperties.filter { it.distance < 0.3 }.map { it.ocrWord.boundingBox.x }.average()
+        val averageMostAccurateX = newProperties.filter { it.distance < 0.5 }.map { it.ocrWord.boundingBox.x }.average()
         //properties.forEach { println(it) }
         properties = newProperties.filter { Math.abs(it.ocrWord.boundingBox.x - averageMostAccurateX) < 250 }.toMutableList()
         println(".......................:")
@@ -98,7 +98,7 @@ class OCRProcessor {
         val maxXX = properties.maxBy { it.ocrWord.boundingBox.x + it.ocrWord.boundingBox.width }!!
         println("LA WORD MAx X " + maxXX.dictWord + "--//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////---")
         //X value from which starting to look for nutritional values
-        val maxX = maxXX.ocrWord.boundingBox.x + maxXX.ocrWord.boundingBox.width + 150
+        val maxX = maxXX.ocrWord.boundingBox.x + maxXX.ocrWord.boundingBox.width
         // probably there's no need for this one because properties are already shrinked in lines before
         //val numRows = properties.mapIndexed { i, p -> if (i + 1 < properties.size) Math.abs(p.ocrWord.boundingBox.y - properties[i + 1].ocrWord.boundingBox.y) else 0 }.filter { it > 5 }.count() + 1
         val numRows = properties.size
@@ -118,9 +118,9 @@ class OCRProcessor {
             }
         }
 
-        printlndiv()
-        shrinkedList.sortedBy { it.boundingBox.x }.take(numRows + 5).sortedBy { it.boundingBox.y }.forEach { println(it) }
-        printlndiv()
+        //printlndiv()
+        //shrinkedList.forEach { println(it) }
+        //printlndiv()
 
         return shrinkedList.toList()
     }
@@ -133,6 +133,7 @@ class OCRProcessor {
         properties.forEach { prop ->
             shrinkedList
                     .forEach { value ->
+                        //if(Math.abs(prop.ocrWord.boundingBox.y - value.boundingBox.y) < 101)
                         println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
                         if (Math.abs(value.boundingBox.y - prop.ocrWord.boundingBox.y) < alignedYMargin && (!map.containsKey(prop) || value.boundingBox.x < map[prop]!!.boundingBox.x)) {
                             map[prop] = value
@@ -187,16 +188,13 @@ class OCRProcessor {
                     }
                     .filter { it.weight < 0.5 }
                     .sortedWith(if (dictionaryType == DictionaryType.X) compareBy({ it.weight }, { it.ocrWord.boundingBox.x }) else compareBy({ it.weight }, { it.ocrWord.boundingBox.y }))
-                    .onEach { println(it) }
+                    //.onEach { println(it) }
                     .minWith(if (dictionaryType == DictionaryType.X) compareBy({ it.weight }, { it.ocrWord.boundingBox.x }) else compareBy({ it.weight }, { it.ocrWord.boundingBox.y }))
                     ?: CustomDistance(Word("", 0.0.toFloat(), Rectangle(0, 0, 0, 0)), "", 0.0)
         }
 
         //Computes the levenstein distance for each word with selected dictionaries which contain the keywords for cropping
         val wordY = getWordForCrop(DictionaryType.Y)
-        printlndiv()
-        printlndiv()
-        printlndiv()
         val wordX = getWordForCrop(DictionaryType.X)
         var x = wordX.ocrWord.boundingBox.x - cropOffset
         var y = wordY.ocrWord.boundingBox.y - cropOffset
