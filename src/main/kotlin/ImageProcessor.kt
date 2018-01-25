@@ -9,7 +9,7 @@ class ImageProcessor {
     //-------------------Contrast params
     private val contrastRType = -1
     private val contrastAlpha = 1.55
-    private val contrastBeta = -25.5
+    val contrastBeta = -65.5
 
     //-------------------Hough params
     private var houghCounter = 1
@@ -22,7 +22,7 @@ class ImageProcessor {
 
     private var finalTheta: Double = 0.0 // degrees
     private var lines = opencv_core.Mat()
-    private val binaryThreshold = 110.0
+    private val binaryThreshold = 80.0
     private val maxRhoThreshold = 500
 
 

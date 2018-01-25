@@ -12,7 +12,6 @@ class MainAlgorithm(imgName : String){
     private val ocrProcessor = OCRProcessor()
     private val words = mutableListOf<Word>()
 
-
     fun run(){
 
         applyHoughWithPreprocessing(originalImgNotResized.clone().resizeSelf())
@@ -52,7 +51,7 @@ class MainAlgorithm(imgName : String){
         //source.clone().resizeSelf().show("grayscale preHough")
 
         imageProcessor.increaseContrast(source)
-        //source.clone().resizeSelf().show("contrast preHough")
+        source.clone().resizeSelf().show("contrast preHough :" + imageProcessor.contrastBeta)
 
         // apply sobel + otsu edge detection
         imageProcessor.applySobel(source)
@@ -89,7 +88,7 @@ class MainAlgorithm(imgName : String){
             //source.clone().resizeSelf().resizeSelf().show("otsu forOCR")
         } else {
             imageProcessor.applyBinary(source)
-            //source.clone().resizeSelf().resizeSelf().show("After binarization (non otsu) forOCR")
+            source.clone().resizeSelf().resizeSelf().show("After binarization (non otsu) forOCR")
         }
     }
 
@@ -109,8 +108,4 @@ class MainAlgorithm(imgName : String){
         }
 
     }
-
-
-
-
 }
