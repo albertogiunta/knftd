@@ -104,7 +104,7 @@ class OCRProcessor {
         val numRows = properties.size
 
         // Selects only the Words that have the smallest X values (as many as the number of proprieties (plus a margin of error)
-        var allRightValues = words.filter { it.text.contains(Regex("[0-9]")) }.filter { it.boundingBox.x > maxX }.sortedBy { it.boundingBox.x }.sortedBy { it.boundingBox.y }.take(numRows + numberOfRowsToAddToTheActualNumberOfRows)
+        var allRightValues = words.filter { it.text.contains(Regex("[0-9]")) }.filter { it.boundingBox.x > maxX }//.sortedBy { it.boundingBox.x }.sortedBy { it.boundingBox.y }//.take(numRows + numberOfRowsToAddToTheActualNumberOfRows)
         //allRightValues = allRightValues.filterNot { it.text.contains(Regex("A-Za-z0-9")) }
         allRightValues = allRightValues.filterNot { it.text.contains(Regex("[/, .]")) && !it.text.contains(Regex("[A-Za-z0-9]")) }
         //Fixes the error made with measurement units (often alone in one line, often a "9", etc) checking for each Word if the next one is a 9 and merging

@@ -7,5 +7,3 @@ fun main(args: Array<String>) {
     algorithm.run()
 
 }
-
-
