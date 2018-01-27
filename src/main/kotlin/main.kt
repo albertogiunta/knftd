@@ -1,6 +1,6 @@
 fun main(args: Array<String>) {
 
-    val imgName = "nerosubianco" + "/" + "training" + "/" + "crostini2" + "." + "jpg"
+    val imgName = "biancosunero" + "/" + "training" + "/" + "delizia" + "." + "jpg"
 
     val algorithm = MainAlgorithm(imgName)
 

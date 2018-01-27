@@ -13,7 +13,7 @@ data class CustomDistance(val ocrWord: Word, val dictWord: String, val distance:
 
 class OCRProcessor {
 
-    private val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "fibre", "fibra", "alimentare")
+    private val dictionaryProperties = listOf("energia", "energetico", "grassi", "acidi", "saturi", "insaturi", "monoinsaturi", "polinsaturi", "carboidrati", "zuccheri", "proteine", "fibre", "sale", "fibre", "fibra")
     private val dictionaryY = listOf("informazioni", "tabella", "dichiarazione", "nutrizionale", "nutrizionali")
     private val dictionaryX = listOf("energia", "grassi", "carboidrati", "proteine", "sale")
     private val distanceThresh = 0.5
