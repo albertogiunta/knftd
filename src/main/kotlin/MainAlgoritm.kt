@@ -36,12 +36,15 @@ class MainAlgorithm(imgName : String){
 
         val properties = ocrProcessor.extractNutritionalPropertyNames(words)
         val values = ocrProcessor.extractNutritionalPropertiesValues(words, properties)
-        val map = ocrProcessor.mergePropertiesWithValues(properties, values)
 
-        drawRectOnImage(map, croppedOriginalNotResized)
+        if (properties.isNotEmpty() && values.isNotEmpty()) {
+            val map = ocrProcessor.mergePropertiesWithValues(properties, values)
+            drawRectOnImage(map, croppedOriginalNotResized)
+        } else {
+            println("---------------- FAIL: No properties found --------------------")
+        }
 
         croppedOriginalNotResized.resizeSelf().resizeSelf().show("Final")
-
 
     }
 

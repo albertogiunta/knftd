@@ -141,13 +141,13 @@ class OCRProcessor {
                     }
         }
 
-        map.forEach { i, u ->
+        /*map.forEach { i, u ->
             if (u.text.endsWith(",9") || (!u.text.endsWith("g") && !u.text.endsWith("kcal") && !u.text.endsWith("kJ")) && !u.text.endsWith("9")) {
                 map[i] = Word(u.text + " g", u.confidence, u.boundingBox)
             } else if (u.text.endsWith("9") || u.text.endsWith("Q")) {
                 map[i] = Word(u.text.dropLast(1) + " g", u.confidence, u.boundingBox)
             }
-        }
+        }*/
 
         printlndiv()
         map.forEach { t, u -> println(t.dictWord + " " + u.text) }

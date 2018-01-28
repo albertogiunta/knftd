@@ -22,7 +22,7 @@ class ImageProcessor {
 
     private var finalTheta: Double = 0.0 // degrees
     private var lines = opencv_core.Mat()
-    private val binaryThreshold = 130.0
+    private val binaryThreshold = 80.0
     private val maxRhoThreshold = 500
 
 
