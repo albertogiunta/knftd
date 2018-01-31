@@ -60,7 +60,7 @@ class ImageProcessor {
     }
 
 
-    fun applyOtsu(source: opencv_core.Mat, dest: opencv_core.Mat = source) = opencv_imgproc.threshold(source, dest, 0.0, 255.0, opencv_imgproc.THRESH_BINARY + opencv_imgproc.THRESH_OTSU)
+    fun applyOtsu(source: opencv_core.Mat, dest: opencv_core.Mat = source) = opencv_imgproc.threshold(source, dest, 0.0, 255.0, opencv_imgproc.THRESH_OTSU)
 
     fun applyBinary(source: opencv_core.Mat, dest: opencv_core.Mat = source) = opencv_imgproc.threshold(source, dest, binaryThreshold, 255.0, opencv_imgproc.THRESH_BINARY)
 

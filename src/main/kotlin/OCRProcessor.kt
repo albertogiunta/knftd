@@ -22,7 +22,7 @@ class OCRProcessor {
     private val numberOfRowsToAddToTheActualNumberOfRows = 20
     private val alignedYMargin = 30
     private val levenshtein = NormalizedLevenshtein()
-    private val muSet = setOf("8", "9", "g", "kcal", "kJ")
+    private val muSet = setOf("8", "9")
 
 
     fun extractNutritionalPropertyNames(words : List<Word>) : List<CustomDistance> {
@@ -96,7 +96,8 @@ class OCRProcessor {
     fun extractNutritionalPropertiesValues(words : List<Word>,properties : List<CustomDistance>) : List<Word>{
         val shrinkedList = mutableListOf<Word>()
         val maxXX = properties.maxBy { it.ocrWord.boundingBox.x + it.ocrWord.boundingBox.width }!!
-        println("LA WORD MAx X " + maxXX.dictWord + "--//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////---")
+
+        //println("LA WORD MAx X " + maxXX.dictWord + "--//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////---")
         //X value from which starting to look for nutritional values
         val maxX = maxXX.ocrWord.boundingBox.x + maxXX.ocrWord.boundingBox.width
         // probably there's no need for this one because properties are already shrinked in lines before
@@ -105,8 +106,10 @@ class OCRProcessor {
 
         // Selects only the Words that have the smallest X values (as many as the number of proprieties (plus a margin of error)
         var allRightValues = words.filter { it.text.contains(Regex("[0-9]")) }.filter { it.boundingBox.x > maxX }//.sortedBy { it.boundingBox.x }.sortedBy { it.boundingBox.y }//.take(numRows + numberOfRowsToAddToTheActualNumberOfRows)
-        //allRightValues = allRightValues.filterNot { it.text.contains(Regex("A-Za-z0-9")) }
-        allRightValues = allRightValues.filterNot { it.text.contains(Regex("[/, .]")) && !it.text.contains(Regex("[A-Za-z0-9]")) }
+        //allRightValues = allRightValues.filterNot { it.text.contains(Regex("A-Za-z0-9"))
+
+        //allRightValues = allRightValues.filterNot { it.text.contains(Regex("[/, .]")) && !it.text.contains(Regex("[A-Za-z0-9]")) }
+
         //Fixes the error made with measurement units (often alone in one line, often a "9", etc) checking for each Word if the next one is a 9 and merging
         allRightValues.mapIndexed { i, p ->
             if (i + 1 < allRightValues.size) {
@@ -125,13 +128,13 @@ class OCRProcessor {
         return shrinkedList.toList()
     }
 
-    fun mergePropertiesWithValues(properties : List<CustomDistance>, shrinkedList : List<Word>) : Map<CustomDistance, Word>{
+    fun mergePropertiesWithValues(properties: List<CustomDistance>, values: List<Word>): Map<CustomDistance, Word> {
 
         val map = mutableMapOf<CustomDistance, Word>()
 
         //For each property looks for a corresponding value almost on the same Y value (aligned)
         properties.forEach { prop ->
-            shrinkedList
+            values
                     .forEach { value ->
                         //if(Math.abs(prop.ocrWord.boundingBox.y - value.boundingBox.y) < 101)
                         println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
