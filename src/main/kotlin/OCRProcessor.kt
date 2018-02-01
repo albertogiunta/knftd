@@ -181,6 +181,9 @@ class OCRProcessor {
                 DictionaryType.Y -> dictionaryY
             }
 
+            val max = words.map { if (dictionaryType == DictionaryType.X) it.boundingBox.x else it.boundingBox.y }.max()!!
+            val min = words.map { if (dictionaryType == DictionaryType.X) it.boundingBox.x else it.boundingBox.y }.min()!!
+
             return words
                     .map { word ->
                         dictionary
@@ -188,7 +191,9 @@ class OCRProcessor {
                                     val distance = levenshtein.distance(word.text.toLowerCase(), dictWord)
                                     var boxCoordinate = if (dictionaryType == DictionaryType.X) word.boundingBox.x else word.boundingBox.y
                                     boxCoordinate = if (boxCoordinate == 0) offsetCrop else boxCoordinate
-                                    val weight = distance * boxCoordinate
+                                    var normalizedCoord = (boxCoordinate - min) / (max - min)
+                                    normalizedCoord = if (normalizedCoord < 0) 0 else boxCoordinate
+                                    val weight = distance * normalizedCoord
                                     CustomDistance(word, dictWord, levenshtein.distance(word.text.toLowerCase(), dictWord), weight)
                                 }
                                 .minBy { it.weight }!!
