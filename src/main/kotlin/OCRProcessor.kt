@@ -21,6 +21,7 @@ class OCRProcessor {
     private val lineMergingYDistanceForValuesAndPossibleMUOnNextLine = 15
     private val numberOfRowsToAddToTheActualNumberOfRows = 20
     private val alignedYMargin = 30
+    private val offsetCrop = 10
     private val levenshtein = NormalizedLevenshtein()
     private val muSet = setOf("8", "9")
 
@@ -186,7 +187,7 @@ class OCRProcessor {
                                 .map { dictWord ->
                                     val distance = levenshtein.distance(word.text.toLowerCase(), dictWord)
                                     var boxCoordinate = if (dictionaryType == DictionaryType.X) word.boundingBox.x else word.boundingBox.y
-                                    boxCoordinate = if (boxCoordinate == 0) 10 else boxCoordinate
+                                    boxCoordinate = if (boxCoordinate == 0) offsetCrop else boxCoordinate
                                     val weight = distance * boxCoordinate
                                     CustomDistance(word, dictWord, levenshtein.distance(word.text.toLowerCase(), dictWord), weight)
                                 }

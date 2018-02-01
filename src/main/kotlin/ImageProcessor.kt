@@ -66,7 +66,7 @@ class ImageProcessor {
 
     fun crop(source: opencv_core.Mat, rect: opencv_core.Rect): opencv_core.Mat = opencv_core.Mat(source, rect)
 
-    fun applyHough(source: opencv_core.Mat, matForDisplay: opencv_core.Mat) {
+    tailrec fun applyHough(source: opencv_core.Mat, matForDisplay: opencv_core.Mat) {
 
         lines = opencv_core.Mat()
         opencv_imgproc.HoughLines(source, lines, distanceResolutionInPixels, angleResolutionInRadians, minimumVotes)
@@ -131,7 +131,7 @@ class ImageProcessor {
         finalTheta = listOf(vertTheta, horTheta).average()
         //println("$vertTheta $horTheta $finalTheta")
 
-        val res2 = matForDisplay.clone()
+        val res2 = matForDisplay.clone().resizeSelf()
         //draw lines
         horizontalLinesList.forEach { opencv_imgproc.line(res2, it.p1, it.p2, opencv_core.Scalar.RED, 1, opencv_core.LINE_8, 0) }
         verticalLinesList.forEach { opencv_imgproc.line(res2, it.p1, it.p2, opencv_core.Scalar.RED, 1, opencv_core.LINE_8, 0) }
@@ -140,7 +140,7 @@ class ImageProcessor {
             minimumVotes -= minimumVotesStep
             applyHough(source, matForDisplay)
         } else {
-            //res2.clone().resizeSelf().show("applied hough n°$houghCounter | minimumVotes: $minimumVotes")
+            res2.clone().show("applied hough n°$houghCounter | minimumVotes: $minimumVotes")
             houghCounter += 1
             minimumVotes = 1000
         }

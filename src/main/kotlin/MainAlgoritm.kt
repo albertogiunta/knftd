@@ -14,6 +14,7 @@ class MainAlgorithm(imgName : String){
 
     fun run(){
 
+        originalImg.show("Original")
         applyHoughWithPreprocessing(originalImgNotResized.clone().resizeSelf())
 
         rotateImage()
@@ -28,6 +29,7 @@ class MainAlgorithm(imgName : String){
 
         applyHoughWithPreprocessing(croppedOriginalNotResized.clone().resizeSelf())
         imageProcessor.rotate(croppedOriginalNotResized)
+        croppedOriginalNotResized.clone().resizeSelf().resizeSelf().show("Rotated")
 
         val imgForOCR2 = croppedOriginalNotResized.clone()
         applyPreprocessingForOCR(imgForOCR2, BinarizationType.BINARY)
@@ -35,11 +37,14 @@ class MainAlgorithm(imgName : String){
         words.addAll(ocrProcessor.extractWords(imgForOCR2))
 
         val properties = ocrProcessor.extractNutritionalPropertyNames(words)
-        val values = ocrProcessor.extractNutritionalPropertiesValues(words, properties)
 
-        if (properties.isNotEmpty() && values.isNotEmpty()) {
-            val map = ocrProcessor.mergePropertiesWithValues(properties, values)
-            drawRectOnImage(map, croppedOriginalNotResized)
+        if (properties.isNotEmpty()) {
+            val values = ocrProcessor.extractNutritionalPropertiesValues(words, properties)
+
+            if (values.isNotEmpty()) {
+                val map = ocrProcessor.mergePropertiesWithValues(properties, values)
+                drawRectOnImage(map, croppedOriginalNotResized)
+            }
         } else {
             println("---------------- FAIL: No properties found --------------------")
         }
@@ -51,15 +56,16 @@ class MainAlgorithm(imgName : String){
     private fun applyHoughWithPreprocessing(source: opencv_core.Mat, imgToBeUsedForDisplayingLines: opencv_core.Mat = source.clone()) {
 
         imageProcessor.convertToGreyscale(source)
-        //source.clone().resizeSelf().show("grayscale preHough")
+        source.clone().resizeSelf().show("grayscale preHough")
 
         imageProcessor.increaseContrast(source)
         source.clone().resizeSelf().show("contrast preHough :" + imageProcessor.contrastBeta)
 
         // apply sobel + otsu edge detection
         imageProcessor.applySobel(source)
+        source.clone().resizeSelf().show("sobel")
         imageProcessor.applyOtsu(source)
-        //source.resizeSelf().show("sobelX")
+        source.clone().resizeSelf().show("otsu")
 
         // apply Hough transform
         imageProcessor.applyHough(source, imgToBeUsedForDisplayingLines)
@@ -75,15 +81,15 @@ class MainAlgorithm(imgName : String){
     private fun applyPreprocessingForOCR(source: opencv_core.Mat, binType: BinarizationType) {
         // reduce color
         imageProcessor.reduceColor(source)
-        //source.clone().resizeSelf().resizeSelf().show("reduce color forOCR 1")
+        source.clone().resizeSelf().resizeSelf().show("reduce color forOCR 1")
 
         // convert to greyscale
         imageProcessor.convertToGreyscale(source)
-        //source.clone().resizeSelf().resizeSelf().show("greyscale forOCR")
+        source.clone().resizeSelf().resizeSelf().show("greyscale forOCR")
 
         // convert to greyscale
         imageProcessor.increaseContrast(source)
-        //source.clone().resizeSelf().resizeSelf().show("contrast forOCR")
+        source.clone().resizeSelf().resizeSelf().show("contrast forOCR")
 
         // apply otsu binary filter
         if (binType == BinarizationType.OTSU) {
