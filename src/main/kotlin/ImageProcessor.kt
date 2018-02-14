@@ -30,8 +30,6 @@ class ImageProcessor {
 
     fun increaseContrast(source: opencv_core.Mat) = source.convertTo(source, contrastRType, contrastAlpha, contrastBeta)
 
-    //fun increaseContrast2(source: opencv_core.Mat) = source.convertTo(source, rType, alpha2, beta2)
-
     fun applySobel(source: opencv_core.Mat) {
         val gradX = opencv_core.Mat()
         val gradY = opencv_core.Mat()

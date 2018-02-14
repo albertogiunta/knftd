@@ -88,8 +88,6 @@ class OCRProcessor {
         val averageMostAccurateX = newProperties.filter { it.distance < 0.5 }.map { it.ocrWord.boundingBox.x }.average()
         //properties.forEach { println(it) }
         properties = newProperties.filter { Math.abs(it.ocrWord.boundingBox.x - averageMostAccurateX) < 250 }.toMutableList()
-        println(".......................:")
-        properties.forEach { println(it) }
 
         return properties.toList()
     }
@@ -98,7 +96,6 @@ class OCRProcessor {
         val shrinkedList = mutableListOf<Word>()
         val maxXX = properties.maxBy { it.ocrWord.boundingBox.x + it.ocrWord.boundingBox.width }!!
 
-        //println("LA WORD MAx X " + maxXX.dictWord + "--//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////---")
         //X value from which starting to look for nutritional values
         val maxX = maxXX.ocrWord.boundingBox.x + maxXX.ocrWord.boundingBox.width
         // probably there's no need for this one because properties are already shrinked in lines before
@@ -138,7 +135,7 @@ class OCRProcessor {
             values
                     .forEach { value ->
                         //if(Math.abs(prop.ocrWord.boundingBox.y - value.boundingBox.y) < 101)
-                        println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
+                        //println("${prop.dictWord} - ${value.text} |  prop y ${prop.ocrWord.boundingBox.y} | value y ${value.boundingBox.y}")
                         if (Math.abs(value.boundingBox.y - prop.ocrWord.boundingBox.y) < alignedYMargin && (!map.containsKey(prop) || value.boundingBox.x < map[prop]!!.boundingBox.x)) {
                             map[prop] = value
                         }
@@ -148,15 +145,8 @@ class OCRProcessor {
             }
         }
 
-        /*map.forEach { i, u ->
-            if (u.text.endsWith(",9") || (!u.text.endsWith("g") && !u.text.endsWith("kcal") && !u.text.endsWith("kJ")) && !u.text.endsWith("9")) {
-                map[i] = Word(u.text + " g", u.confidence, u.boundingBox)
-            } else if (u.text.endsWith("9") || u.text.endsWith("Q")) {
-                map[i] = Word(u.text.dropLast(1) + " g", u.confidence, u.boundingBox)
-            }
-        }*/
-
-        printlndiv()
+        //printlndiv()
+        println("Final result:")
         map.forEach { t, u -> println(t.dictWord + " " + u.text) }
 
         return map.toMap()
@@ -215,7 +205,7 @@ class OCRProcessor {
 
 //    words.sortedBy { it.boundingBox.x }.forEach { println(it) }
 
-        println("words used for crop: | $wordY | \nand\n | $wordX |")
+        println("words used for crop:  ${wordY.dictWord}  and  ${wordX.dictWord} ")
 
         return opencv_core.Rect(x, y, source.size().width() - x, source.size().height() - y)
     }

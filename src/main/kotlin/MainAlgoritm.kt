@@ -56,16 +56,16 @@ class MainAlgorithm(imgName : String){
     private fun applyHoughWithPreprocessing(source: opencv_core.Mat, imgToBeUsedForDisplayingLines: opencv_core.Mat = source.clone()) {
 
         imageProcessor.convertToGreyscale(source)
-        source.clone().resizeSelf().show("grayscale preHough")
+        source.clone().resizeSelf().show("Grayscale preHough")
 
         imageProcessor.increaseContrast(source)
-        source.clone().resizeSelf().show("contrast preHough :" + imageProcessor.contrastBeta)
+        source.clone().resizeSelf().show("Contrast preHough :" + imageProcessor.contrastBeta)
 
         // apply sobel + otsu edge detection
         imageProcessor.applySobel(source)
-        source.clone().resizeSelf().show("sobel")
+        source.clone().resizeSelf().show("Sobel")
         imageProcessor.applyOtsu(source)
-        source.clone().resizeSelf().show("otsu")
+        source.clone().resizeSelf().show("Otsu")
 
         // apply Hough transform
         imageProcessor.applyHough(source, imgToBeUsedForDisplayingLines)
@@ -81,15 +81,15 @@ class MainAlgorithm(imgName : String){
     private fun applyPreprocessingForOCR(source: opencv_core.Mat, binType: BinarizationType) {
         // reduce color
         imageProcessor.reduceColor(source)
-        source.clone().resizeSelf().resizeSelf().show("reduce color forOCR 1")
+        source.clone().resizeSelf().resizeSelf().show("Reduce color forOCR 1")
 
         // convert to greyscale
         imageProcessor.convertToGreyscale(source)
-        source.clone().resizeSelf().resizeSelf().show("greyscale forOCR")
+        source.clone().resizeSelf().resizeSelf().show("Greyscale forOCR")
 
         // convert to greyscale
         imageProcessor.increaseContrast(source)
-        source.clone().resizeSelf().resizeSelf().show("contrast forOCR")
+        source.clone().resizeSelf().resizeSelf().show("Contrast forOCR")
 
         // apply otsu binary filter
         if (binType == BinarizationType.OTSU) {
@@ -97,7 +97,7 @@ class MainAlgorithm(imgName : String){
             //source.clone().resizeSelf().resizeSelf().show("otsu forOCR")
         } else {
             imageProcessor.applyBinary(source)
-            source.clone().resizeSelf().resizeSelf().show("After binarization (non otsu) forOCR")
+            source.clone().resizeSelf().resizeSelf().show("After global binarization forOCR")
         }
     }
 
